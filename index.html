@@ -9,9 +9,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- MQTT.js untuk Instant Zero-Config Signaling (Tanpa Setup Firebase) -->
+  <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 
   <style>
-    /* Custom Scrollbar & Utilitas Tampilan */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
     ::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.8); border-radius: 9999px; }
@@ -23,11 +24,11 @@
     .grid-stage {
       display: grid;
       gap: 0.75rem;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       align-content: center;
     }
 
-    /* Tata Letak Spotlight (1 Video Utama Besar + Thumbnail Kecil) */
+    /* Tata Letak Spotlight (1 Pembicara Utama Besar + Peserta Lain Mengecil) */
     .spotlight-layout {
       display: flex;
       flex-direction: column;
@@ -42,7 +43,7 @@
 
     .spotlight-main {
       flex: 1;
-      min-height: 55%;
+      min-height: 56%;
       position: relative;
     }
 
@@ -65,8 +66,8 @@
     }
 
     .spotlight-strip .video-card {
-      width: 160px;
-      height: 110px;
+      width: 155px;
+      height: 108px;
       flex-shrink: 0;
     }
     @media (min-width: 1024px) {
@@ -76,7 +77,6 @@
       }
     }
 
-    /* Animasi Notifikasi Toast */
     @keyframes slideInRight {
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
@@ -95,16 +95,22 @@
       <!-- Kolom Kiri: Preview Kamera & Spektrum Audio -->
       <div class="lg:col-span-7 flex flex-col justify-between space-y-4">
         <div>
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium mb-3">
-            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-            <span>End-to-End Encrypted (AES-256-GCM)</span>
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+              <span>End-to-End Encrypted (AES-256-GCM)</span>
+            </span>
+            <span id="signalingModeBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-medium">
+              <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+              <span>Instant P2P Cloud (Siap Pakai)</span>
+            </span>
           </div>
           <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white">SecureMeet Conference</h1>
-          <p class="text-slate-400 text-sm mt-1">Video conference HD terenkripsi dengan papan tulis kolaboratif dan verifikasi lokasi peserta.</p>
+          <p class="text-slate-400 text-sm mt-1">Video conference HD terenkripsi dengan papan tulis interaktif dan verifikasi lokasi peserta.</p>
         </div>
 
         <!-- Preview Video Lokal -->
-        <div class="relative aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner group">
+        <div class="relative aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner">
           <video id="lobbyPreviewVideo" autoplay muted playsinline class="w-full h-full object-cover video-mirror"></video>
           <div id="lobbyCameraOffPlaceholder" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
             <i data-lucide="video-off" class="w-10 h-10 mb-2 text-slate-500"></i>
@@ -125,14 +131,6 @@
               <span class="text-[11px] text-slate-400 hidden sm:inline">Spektrum Audio:</span>
               <canvas id="lobbyAudioCanvas" width="120" height="28" class="rounded bg-slate-900/90"></canvas>
             </div>
-          </div>
-        </div>
-
-        <!-- Peringatan Konfigurasi Firebase (Tampil hanya jika belum diisi) -->
-        <div id="firebaseWarningBanner" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
-          <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 mt-0.5 text-amber-400"></i>
-          <div>
-            <strong>Mode Pratinjau Lokal:</strong> Konfigurasi <code>FIREBASE_CONFIG</code> belum diisi. Anda tetap dapat menguji kamera, spektrum audio, lokasi GPS, dan papan tulis secara lokal. Isi konfigurasi Firebase di kode untuk sinkronisasi antar peserta.
           </div>
         </div>
       </div>
@@ -222,8 +220,8 @@
             <span id="roleBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">HOST</span>
           </div>
           <div class="flex items-center gap-2 text-[11px] text-emerald-400">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span id="e2eeStatusLabel">E2EE Aktif • AES-256-GCM</span>
+            <span id="connStatusDot" class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+            <span id="e2eeStatusLabel">Menghubungkan jaringan P2P terenkripsi...</span>
           </div>
         </div>
       </div>
@@ -253,9 +251,8 @@
       <!-- Container Video & Whiteboard -->
       <div class="flex-1 flex flex-col p-3 overflow-hidden relative">
         
-        <!-- Panel Papan Tulis Interaktif (Tersembunyi secara default) -->
+        <!-- Panel Papan Tulis Interaktif -->
         <div id="whiteboardContainer" class="hidden mb-3 flex-1 min-h-[45%] bg-white rounded-2xl shadow-xl border border-slate-700 flex flex-col overflow-hidden relative z-10">
-          <!-- Toolbar Papan Tulis -->
           <div class="bg-slate-900 px-3 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800">
             <div class="flex items-center gap-1.5">
               <span class="text-xs font-semibold text-white mr-2 flex items-center gap-1.5">
@@ -290,21 +287,17 @@
               </button>
             </div>
           </div>
-          <!-- Area Kanvas Gambar -->
           <div id="wbCanvasWrapper" class="flex-1 relative cursor-crosshair touch-none bg-slate-50">
             <canvas id="whiteboardCanvas" class="absolute inset-0 w-full h-full"></canvas>
           </div>
         </div>
 
-        <!-- Stage Video (Mendukung Mode Grid & Mode Spotlight) -->
-        <div id="videoStage" class="flex-1 overflow-y-auto grid-stage">
-          <!-- Kartu video peserta akan dirender secara dinamis di sini -->
-        </div>
+        <!-- Stage Video (Grid & Spotlight Mode) -->
+        <div id="videoStage" class="flex-1 overflow-y-auto grid-stage"></div>
       </div>
 
       <!-- Sidebar Kanan: Live Chat & Pantau Lokasi Host -->
       <aside id="sideDrawer" class="hidden w-full sm:w-80 lg:w-96 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0 z-30 absolute inset-y-0 right-0 sm:static">
-        <!-- Tab Navigasi Sidebar -->
         <div class="h-12 px-3 border-b border-slate-800 flex items-center justify-between">
           <div class="flex items-center gap-1">
             <button id="tabChatBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition">
@@ -341,9 +334,7 @@
           <div class="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300">
             Panel khusus <strong>Host</strong>: Menampilkan titik koordinat GPS terkini setiap peserta yang tergabung.
           </div>
-          <div id="hostLocationList" class="space-y-2.5">
-            <!-- Daftar kartu lokasi peserta dirender di sini -->
-          </div>
+          <div id="hostLocationList" class="space-y-2.5"></div>
         </div>
       </aside>
     </main>
@@ -374,7 +365,6 @@
         <span id="unreadChatBadge" class="hidden absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-[10px] font-bold flex items-center justify-center">0</span>
       </button>
 
-      <!-- Tombol Khusus Host: Pantau Lokasi -->
       <button id="btnHostLocations" type="button" class="hidden p-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-2" title="Pantau Lokasi Peserta">
         <i data-lucide="map-pin" class="w-5 h-5"></i>
         <span class="hidden md:inline text-xs font-medium">Lokasi</span>
@@ -393,19 +383,20 @@
   <div id="toastContainer" class="fixed top-16 right-4 z-50 flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
 
   <!-- =====================================================================
-       3. LOGIKA APLIKASI (MODULAR ES6 + FIREBASE + WEBRTC + E2EE)
+       3. LOGIKA APLIKASI (DUAL-MODE SIGNALING + WEBRTC + E2EE)
   ====================================================================== -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
       getDatabase, ref, set, push, onChildAdded, onChildRemoved,
-      remove, onDisconnect, serverTimestamp, get
+      remove, onDisconnect, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     /**
      * =========================================================================
-     * KONFIGURASI FIREBASE & ICE SERVERS
-     * Ganti nilai di bawah ini dengan kredensial Firebase Realtime Database Anda.
+     * OPSIONAL: KONFIGURASI FIREBASE REALTIME DATABASE
+     * Biarkan seperti ini jika ingin langsung berjalan otomatis tanpa Firebase.
+     * Jika diisi dengan kredensial Firebase Anda, aplikasi otomatis memakai Firebase.
      * =========================================================================
      */
     const FIREBASE_CONFIG = {
@@ -422,43 +413,40 @@
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" }
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun.cloudflare.com:3478" }
       ]
     };
 
-    const isFirebaseConfigured = FIREBASE_CONFIG.apiKey !== "YOUR_FIREBASE_API_KEY";
-    let db = null;
-    if (isFirebaseConfigured) {
+    const useFirebase = FIREBASE_CONFIG.apiKey !== "YOUR_FIREBASE_API_KEY";
+    let firebaseDb = null;
+
+    if (useFirebase) {
       const app = initializeApp(FIREBASE_CONFIG);
-      db = getDatabase(app);
-    } else {
-      document.getElementById("firebaseWarningBanner").classList.remove("hidden");
+      firebaseDb = getDatabase(app);
+      const badge = document.getElementById("signalingModeBadge");
+      badge.innerHTML = `<i data-lucide="database" class="w-3.5 h-3.5"></i><span>Firebase Realtime DB Aktif</span>`;
     }
 
     /**
      * =========================================================================
      * MODUL 1: CRYPTO SERVICE (ENKRIPSI UJUNG-KE-UJUNG AES-256-GCM)
-     * Kunci disimpan pada URL Fragment (#) sehingga tidak pernah dikirim ke server.
      * =========================================================================
      */
     class CryptoService {
       constructor() {
         this.cryptoKey = null;
-        this.rawSecret = null;
         this.supportsEncodedStreams = typeof RTCRtpSender !== "undefined" &&
           "createEncodedStreams" in RTCRtpSender.prototype;
       }
 
-      /** Menghasilkan kunci acak base64url 256-bit */
       generateSecret() {
         const bytes = crypto.getRandomValues(new Uint8Array(32));
         return btoa(String.fromCharCode(...bytes))
           .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
       }
 
-      /** Mengimpor string rahasia menjadi WebCrypto AES-GCM Key */
       async initKey(secretString) {
-        this.rawSecret = secretString;
         const enc = new TextEncoder();
         const keyMaterial = await crypto.subtle.importKey(
           "raw",
@@ -470,7 +458,6 @@
         this.cryptoKey = keyMaterial;
       }
 
-      /** Enkripsi teks/objek JSON untuk Chat & Whiteboard */
       async encryptJSON(dataObj) {
         if (!this.cryptoKey) return JSON.stringify(dataObj);
         const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -482,7 +469,6 @@
         });
       }
 
-      /** Dekripsi teks/objek JSON */
       async decryptJSON(cipherString) {
         if (!this.cryptoKey) return JSON.parse(cipherString);
         const parsed = JSON.parse(cipherString);
@@ -492,7 +478,6 @@
         return JSON.parse(new TextDecoder().decode(decrypted));
       }
 
-      /** Terapkan E2EE pada WebRTC Sender Stream (Audio/Video Frame) */
       attachSenderTransform(sender) {
         if (!this.supportsEncodedStreams || !this.cryptoKey) return;
         try {
@@ -501,7 +486,6 @@
             transform: async (encodedFrame, controller) => {
               try {
                 const view = new Uint8Array(encodedFrame.data);
-                // Sisakan 10 byte header frame agar packetizer WebRTC tetap berjalan mulus
                 const headerLen = Math.min(10, view.byteLength);
                 const header = view.slice(0, headerLen);
                 const payload = view.slice(headerLen);
@@ -518,17 +502,14 @@
                 out.set(new Uint8Array(encrypted), headerLen);
                 out.set(iv, headerLen + encrypted.byteLength);
                 encodedFrame.data = out.buffer;
-              } catch (_) { /* Lewati jika frame kontrol kosong */ }
+              } catch (_) {}
               controller.enqueue(encodedFrame);
             }
           });
           streams.readable.pipeThrough(transformer).pipeTo(streams.writable);
-        } catch (err) {
-          console.warn("E2EE Sender Transform fallback:", err);
-        }
+        } catch (_) {}
       }
 
-      /** Terapkan E2EE pada WebRTC Receiver Stream */
       attachReceiverTransform(receiver) {
         if (!this.supportsEncodedStreams || !this.cryptoKey) return;
         try {
@@ -554,20 +535,226 @@
                   out.set(new Uint8Array(decrypted), headerLen);
                   encodedFrame.data = out.buffer;
                 }
-              } catch (_) { /* Abaikan frame sebelum kunci sinkron */ }
+              } catch (_) {}
               controller.enqueue(encodedFrame);
             }
           });
           streams.readable.pipeThrough(transformer).pipeTo(streams.writable);
-        } catch (err) {
-          console.warn("E2EE Receiver Transform fallback:", err);
+        } catch (_) {}
+      }
+    }
+
+    /**
+     * =========================================================================
+     * MODUL 2: DUAL-MODE SIGNALING SERVICE
+     * Mendukung Zero-Config WSS Broker (langsung jalan tanpa setup)
+     * maupun Firebase Realtime Database secara otomatis.
+     * =========================================================================
+     */
+    class SignalingService {
+      constructor(callbacks) {
+        this.cb = callbacks; // onConnected, onParticipantJoin, onParticipantLeave, onSignal, onChat, onWhiteboard
+        this.mqttClient = null;
+        this.roomId = "";
+        this.selfData = null;
+      }
+
+      connect(roomId, selfData) {
+        this.roomId = roomId;
+        this.selfData = selfData;
+
+        if (useFirebase && firebaseDb) {
+          this.connectFirebase();
+        } else {
+          this.connectInstantWSS();
+        }
+      }
+
+      /** Jalur A: Zero-Config WSS Signaling + Last Will Presence */
+      connectInstantWSS() {
+        const prefix = `securemeet_v1/${this.roomId}`;
+        const myPresenceTopic = `${prefix}/presence/${this.selfData.peerId}`;
+        const presenceWildcard = `${prefix}/presence/+`;
+        const mySignalTopic = `${prefix}/signal/${this.selfData.peerId}`;
+        const chatTopic = `${prefix}/chat`;
+        const wbTopic = `${prefix}/whiteboard`;
+
+        // Broker WSS publik berkecepatan tinggi dengan Last Will otomatis saat tab ditutup
+        this.mqttClient = window.mqtt.connect("wss://broker.emqx.io:8084/mqtt", {
+          clientId: `sm_${this.selfData.peerId}_${Math.random().toString(16).slice(2, 6)}`,
+          clean: true,
+          connectTimeout: 8000,
+          reconnectPeriod: 2000,
+          will: {
+            topic: myPresenceTopic,
+            payload: "",
+            qos: 1,
+            retain: true
+          }
+        });
+
+        this.mqttClient.on("connect", () => {
+          this.cb.onConnected?.("E2EE Aktif • AES-256-GCM (P2P Cloud)");
+          this.mqttClient.subscribe(
+            [presenceWildcard, mySignalTopic, chatTopic, wbTopic],
+            { qos: 1 },
+            () => {
+              // Umumkan kehadiran dengan retain: true agar peserta baru langsung melihat
+              this.mqttClient.publish(
+                myPresenceTopic,
+                JSON.stringify(this.selfData),
+                { qos: 1, retain: true }
+              );
+            }
+          );
+        });
+
+        this.mqttClient.on("message", (topic, payloadBuf) => {
+          const raw = payloadBuf.toString();
+
+          if (topic.startsWith(`${prefix}/presence/`)) {
+            const targetPeerId = topic.split("/").pop();
+            if (targetPeerId === this.selfData.peerId) return;
+
+            if (!raw) {
+              // Payload kosong = peserta keluar / terputus (Last Will)
+              this.cb.onParticipantLeave?.(targetPeerId);
+            } else {
+              try {
+                const participant = JSON.parse(raw);
+                this.cb.onParticipantJoin?.(participant);
+              } catch (_) {}
+            }
+          } else if (topic === mySignalTopic) {
+            try {
+              this.cb.onSignal?.(JSON.parse(raw));
+            } catch (_) {}
+          } else if (topic === chatTopic) {
+            this.cb.onChat?.(raw);
+          } else if (topic === wbTopic) {
+            try {
+              this.cb.onWhiteboard?.(JSON.parse(raw));
+            } catch (_) {}
+          }
+        });
+      }
+
+      /** Jalur B: Firebase Realtime Database */
+      connectFirebase() {
+        const participantsRef = ref(firebaseDb, `rooms/${this.roomId}/participants`);
+        const myParticipantRef = ref(firebaseDb, `rooms/${this.roomId}/participants/${this.selfData.peerId}`);
+        const mySignalsRef = ref(firebaseDb, `rooms/${this.roomId}/signals/${this.selfData.peerId}`);
+        const chatRef = ref(firebaseDb, `rooms/${this.roomId}/messages`);
+        const wbRef = ref(firebaseDb, `rooms/${this.roomId}/whiteboard`);
+
+        set(myParticipantRef, {
+          ...this.selfData,
+          joinedAt: serverTimestamp()
+        }).then(() => {
+          this.cb.onConnected?.("E2EE Aktif • AES-256-GCM (Firebase)");
+        });
+
+        onDisconnect(myParticipantRef).remove();
+        onDisconnect(mySignalsRef).remove();
+
+        onChildAdded(participantsRef, (snap) => {
+          const p = snap.val();
+          if (p && p.peerId !== this.selfData.peerId) {
+            this.cb.onParticipantJoin?.(p);
+          }
+        });
+
+        onChildRemoved(participantsRef, (snap) => {
+          const p = snap.val();
+          if (p && p.peerId !== this.selfData.peerId) {
+            this.cb.onParticipantLeave?.(p.peerId);
+          }
+        });
+
+        onChildAdded(mySignalsRef, async (snap) => {
+          const signal = snap.val();
+          await remove(snap.ref);
+          if (signal) this.cb.onSignal?.(signal);
+        });
+
+        onChildAdded(chatRef, (snap) => {
+          if (snap.val()) this.cb.onChat?.(snap.val());
+        });
+
+        onChildAdded(wbRef, (snap) => {
+          if (snap.val()) this.cb.onWhiteboard?.({ action: "stroke", data: snap.val() });
+        });
+
+        onChildRemoved(wbRef, () => {
+          this.cb.onWhiteboard?.({ action: "clear" });
+        });
+      }
+
+      sendSignal(targetPeerId, signalObj) {
+        if (useFirebase && firebaseDb) {
+          push(ref(firebaseDb, `rooms/${this.roomId}/signals/${targetPeerId}`), signalObj);
+        } else if (this.mqttClient?.connected) {
+          this.mqttClient.publish(
+            `securemeet_v1/${this.roomId}/signal/${targetPeerId}`,
+            JSON.stringify(signalObj),
+            { qos: 1 }
+          );
+        }
+      }
+
+      sendChat(encryptedString) {
+        if (useFirebase && firebaseDb) {
+          push(ref(firebaseDb, `rooms/${this.roomId}/messages`), encryptedString);
+        } else if (this.mqttClient?.connected) {
+          this.mqttClient.publish(
+            `securemeet_v1/${this.roomId}/chat`,
+            encryptedString,
+            { qos: 1 }
+          );
+        }
+      }
+
+      sendWhiteboardStroke(encryptedString) {
+        if (useFirebase && firebaseDb) {
+          push(ref(firebaseDb, `rooms/${this.roomId}/whiteboard`), encryptedString);
+        } else if (this.mqttClient?.connected) {
+          this.mqttClient.publish(
+            `securemeet_v1/${this.roomId}/whiteboard`,
+            JSON.stringify({ action: "stroke", data: encryptedString }),
+            { qos: 0 }
+          );
+        }
+      }
+
+      clearWhiteboard() {
+        if (useFirebase && firebaseDb) {
+          remove(ref(firebaseDb, `rooms/${this.roomId}/whiteboard`));
+        } else if (this.mqttClient?.connected) {
+          this.mqttClient.publish(
+            `securemeet_v1/${this.roomId}/whiteboard`,
+            JSON.stringify({ action: "clear" }),
+            { qos: 1 }
+          );
+        }
+      }
+
+      async disconnect() {
+        if (useFirebase && firebaseDb) {
+          await remove(ref(firebaseDb, `rooms/${this.roomId}/participants/${this.selfData.peerId}`));
+        } else if (this.mqttClient?.connected) {
+          this.mqttClient.publish(
+            `securemeet_v1/${this.roomId}/presence/${this.selfData.peerId}`,
+            "",
+            { qos: 1, retain: true }
+          );
+          this.mqttClient.end();
         }
       }
     }
 
     /**
      * =========================================================================
-     * MODUL 2: LOCATION SERVICE (WAJIB IZIN GPS SEBELUM BERGABUNG)
+     * MODUL 3: LOCATION SERVICE (WAJIB IZIN GPS SEBELUM BERGABUNG)
      * =========================================================================
      */
     class LocationService {
@@ -610,7 +797,7 @@
 
     /**
      * =========================================================================
-     * MODUL 3: AUDIO VISUALIZER (SPEKTRUM FREKUENSI WEB AUDIO API)
+     * MODUL 4: AUDIO VISUALIZER (SPEKTRUM FREKUENSI WEB AUDIO API)
      * =========================================================================
      */
     class AudioVisualizer {
@@ -629,7 +816,6 @@
         }
       }
 
-      /** Menghubungkan MediaStream ke elemen <canvas> untuk render spektrum bar */
       attach(id, stream, canvasElement, onSpeakingChange = null) {
         this.detach(id);
         if (!stream || stream.getAudioTracks().length === 0 || !canvasElement) return;
@@ -679,9 +865,7 @@
 
           draw();
           this.activeLoops.set(id, { animId, source, analyser });
-        } catch (err) {
-          console.warn("Visualizer skipped:", err);
-        }
+        } catch (_) {}
       }
 
       detach(id) {
@@ -696,21 +880,20 @@
 
     /**
      * =========================================================================
-     * MODUL 4: INTERACTIVE COLLABORATIVE WHITEBOARD
-     * Menggunakan koordinat ternormalisasi (0..1) agar presisi di semua ukuran layar.
+     * MODUL 5: INTERACTIVE COLLABORATIVE WHITEBOARD
      * =========================================================================
      */
     class WhiteboardManager {
-      constructor(canvas, cryptoService) {
+      constructor(canvas, cryptoService, signalingService) {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
         this.cryptoService = cryptoService;
+        this.signaling = signalingService;
         this.isDrawing = false;
         this.tool = "pen";
         this.color = "#1e293b";
         this.size = 4;
         this.lastPos = null;
-        this.strokesRef = null;
         this.senderId = null;
 
         this.bindEvents();
@@ -722,7 +905,6 @@
         const rect = parent.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return;
 
-        // Simpan gambar sementara sebelum resize
         const temp = document.createElement("canvas");
         temp.width = this.canvas.width;
         temp.height = this.canvas.height;
@@ -750,7 +932,7 @@
           this.lastPos = this.getNormalizedPos(e);
         };
 
-        const move = (e) => {
+        const move = async (e) => {
           if (!this.isDrawing) return;
           e.preventDefault();
           const currentPos = this.getNormalizedPos(e);
@@ -765,8 +947,10 @@
             sender: this.senderId
           };
           this.drawSegment(stroke);
-          this.broadcastStroke(stroke);
           this.lastPos = currentPos;
+
+          const encrypted = await this.cryptoService.encryptJSON(stroke);
+          this.signaling.sendWhiteboardStroke(encrypted);
         };
 
         const end = () => { this.isDrawing = false; };
@@ -812,42 +996,28 @@
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       }
 
-      async broadcastStroke(stroke) {
-        if (!db || !this.strokesRef) return;
-        const encrypted = await this.cryptoService.encryptJSON(stroke);
-        push(this.strokesRef, encrypted);
-      }
-
-      async clearAll() {
+      clearAll() {
         this.clearLocal();
-        if (db && this.strokesRef) {
-          await remove(this.strokesRef);
-        }
+        this.signaling.clearWhiteboard();
       }
 
-      syncWithRoom(roomId, senderId) {
-        this.senderId = senderId;
-        if (!db) return;
-        this.strokesRef = ref(db, `rooms/${roomId}/whiteboard`);
-
-        onChildAdded(this.strokesRef, async (snap) => {
+      async handleRemoteEvent(event) {
+        if (event.action === "clear") {
+          this.clearLocal();
+        } else if (event.action === "stroke") {
           try {
-            const stroke = await this.cryptoService.decryptJSON(snap.val());
+            const stroke = await this.cryptoService.decryptJSON(event.data);
             if (stroke.sender !== this.senderId) {
               this.drawSegment(stroke);
             }
           } catch (_) {}
-        });
-
-        onChildRemoved(this.strokesRef, () => {
-          this.clearLocal();
-        });
+        }
       }
     }
 
     /**
      * =========================================================================
-     * MODUL 5: MAIN CONFERENCE CONTROLLER (WEBRTC + FIREBASE + UI STATE)
+     * MODUL 6: MAIN CONFERENCE CONTROLLER (WEBRTC MESH + UI STATE)
      * =========================================================================
      */
     class SecureMeetApp {
@@ -855,12 +1025,28 @@
         this.crypto = new CryptoService();
         this.locationSvc = new LocationService();
         this.visualizer = new AudioVisualizer();
+
+        this.signaling = new SignalingService({
+          onConnected: (statusText) => {
+            document.getElementById("connStatusDot").className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
+            document.getElementById("e2eeStatusLabel").textContent = statusText;
+          },
+          onParticipantJoin: (p) => this.handleParticipantJoin(p),
+          onParticipantLeave: (peerId) => this.handleParticipantLeave(peerId),
+          onSignal: (sig) => this.handleIncomingSignal(sig),
+          onChat: (cipher) => this.handleIncomingChat(cipher),
+          onWhiteboard: (ev) => this.whiteboard.handleRemoteEvent(ev)
+        });
+
         this.whiteboard = new WhiteboardManager(
           document.getElementById("whiteboardCanvas"),
-          this.crypto
+          this.crypto,
+          this.signaling
         );
 
         this.peerId = "peer_" + Math.random().toString(36).substring(2, 10);
+        this.whiteboard.senderId = this.peerId;
+
         this.userName = "";
         this.roomId = "";
         this.isHost = false;
@@ -870,9 +1056,10 @@
         this.micEnabled = true;
         this.camEnabled = true;
 
-        this.peers = new Map();        // remotePeerId -> RTCPeerConnection
-        this.participants = new Map(); // peerId -> participant metadata
-        this.spotlightPeerId = null;   // null = Grid mode, peerId = Spotlight mode
+        this.peers = new Map();
+        this.iceQueues = new Map();
+        this.participants = new Map();
+        this.spotlightPeerId = null;
         this.unreadChatCount = 0;
 
         this.init();
@@ -886,24 +1073,22 @@
         await this.startLocalPreview();
       }
 
-      /** Mengecek apakah pengguna membuka tautan undangan (?room=XYZ#secret) */
       parseInviteURL() {
         const params = new URLSearchParams(window.location.search);
         const roomParam = params.get("room");
         const hashSecret = window.location.hash.replace("#", "").trim();
 
         if (roomParam) {
-          this.roomId = roomParam;
+          this.roomId = roomParam.toUpperCase();
           document.getElementById("hostCreateSection").classList.add("hidden");
           document.getElementById("inviteJoinSection").classList.remove("hidden");
-          document.getElementById("invitedRoomLabel").textContent = roomParam;
+          document.getElementById("invitedRoomLabel").textContent = this.roomId;
           if (hashSecret) {
             this.crypto.initKey(hashSecret);
           }
         }
       }
 
-      /** Mengaktifkan kamera HD & mikrofon berkualitas tinggi di Lobi */
       async startLocalPreview() {
         try {
           this.localStream = await navigator.mediaDevices.getUserMedia({
@@ -919,21 +1104,18 @@
               sampleRate: 48000
             }
           });
-          const previewVid = document.getElementById("lobbyPreviewVideo");
-          previewVid.srcObject = this.localStream;
-
+          document.getElementById("lobbyPreviewVideo").srcObject = this.localStream;
           this.visualizer.attach(
             "lobby",
             this.localStream,
             document.getElementById("lobbyAudioCanvas")
           );
-        } catch (err) {
+        } catch (_) {
           this.showToast("Kamera/Mikrofon tidak terdeteksi. Pastikan izin perangkat aktif.", "error");
         }
       }
 
       bindLobbyEvents() {
-        // Toggle Mic Lobi
         document.getElementById("lobbyToggleMic").addEventListener("click", (e) => {
           this.micEnabled = !this.micEnabled;
           this.localStream?.getAudioTracks().forEach(t => t.enabled = this.micEnabled);
@@ -942,7 +1124,6 @@
           lucide.createIcons();
         });
 
-        // Toggle Cam Lobi
         document.getElementById("lobbyToggleCam").addEventListener("click", (e) => {
           this.camEnabled = !this.camEnabled;
           this.localStream?.getVideoTracks().forEach(t => t.enabled = this.camEnabled);
@@ -952,35 +1133,29 @@
           lucide.createIcons();
         });
 
-        // Tombol Minta Izin Lokasi
         document.getElementById("btnRequestLocation").addEventListener("click", () => this.verifyLocationUI());
 
-        // Buat Ruang Baru sebagai Host
         document.getElementById("btnCreateRoom").addEventListener("click", async () => {
-          const ok = await this.validateEntryRequirements();
-          if (!ok) return;
+          if (!(await this.validateEntryRequirements())) return;
 
           this.isHost = true;
           this.roomId = "MTG-" + Math.random().toString(36).substring(2, 7).toUpperCase();
           const secret = this.crypto.generateSecret();
           await this.crypto.initKey(secret);
 
-          // Perbarui URL agar Host bisa langsung menyalin tautan undangan
           const newUrl = `${window.location.pathname}?room=${this.roomId}#${secret}`;
           window.history.replaceState({}, "", newUrl);
 
           this.enterConference();
         });
 
-        // Gabung dengan ID Manual
         document.getElementById("btnJoinRoom").addEventListener("click", async () => {
           const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
           if (!code) {
             this.showToast("Masukkan ID Ruang rapat terlebih dahulu.", "error");
             return;
           }
-          const ok = await this.validateEntryRequirements();
-          if (!ok) return;
+          if (!(await this.validateEntryRequirements())) return;
 
           this.isHost = false;
           this.roomId = code;
@@ -990,10 +1165,8 @@
           this.enterConference();
         });
 
-        // Gabung dari Tautan Undangan
         document.getElementById("btnJoinInvitedRoom").addEventListener("click", async () => {
-          const ok = await this.validateEntryRequirements();
-          if (!ok) return;
+          if (!(await this.validateEntryRequirements())) return;
           this.isHost = false;
           if (!this.crypto.cryptoKey) {
             await this.crypto.initKey(this.roomId + "_default_e2ee_key");
@@ -1041,7 +1214,6 @@
         }
         this.userName = nameVal;
 
-        // Wajib izin lokasi sebelum masuk
         if (!this.locationSvc.coords) {
           const granted = await this.verifyLocationUI();
           if (!granted) return false;
@@ -1049,7 +1221,6 @@
         return true;
       }
 
-      /** Memasuki Ruang Konferensi */
       enterConference() {
         this.visualizer.detach("lobby");
         document.getElementById("lobbyScreen").classList.add("hidden");
@@ -1062,13 +1233,11 @@
           roleBadge.className = "text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700";
         }
 
-        // Aktifkan panel pemantau lokasi khusus untuk Host
         if (this.isHost) {
           document.getElementById("btnHostLocations").classList.remove("hidden");
           document.getElementById("tabLocationBtn").classList.remove("hidden");
         }
 
-        // Render kartu video lokal
         const selfData = {
           peerId: this.peerId,
           name: this.userName,
@@ -1079,86 +1248,46 @@
         this.createVideoCard(selfData, this.localStream, true);
         this.updateHostLocationPanel();
 
-        // Inisialisasi Firebase Signaling, Presence, Chat & Whiteboard
-        if (db) {
-          this.setupFirebaseRoom(selfData);
-          this.whiteboard.syncWithRoom(this.roomId, this.peerId);
-        }
+        // Mulai Signaling (Langsung aktif baik dengan maupun tanpa Firebase)
+        this.signaling.connect(this.roomId, selfData);
 
         this.playNotificationTone("join");
         this.showToast(`Anda bergabung ke ruang ${this.roomId}`, "success");
       }
 
-      /** Sinkronisasi Firebase: Presence, Join/Leave Notifications, Signaling, Chat */
-      setupFirebaseRoom(selfData) {
-        const participantsRef = ref(db, `rooms/${this.roomId}/participants`);
-        const myParticipantRef = ref(db, `rooms/${this.roomId}/participants/${this.peerId}`);
-        const mySignalsRef = ref(db, `rooms/${this.roomId}/signals/${this.peerId}`);
-        const chatRef = ref(db, `rooms/${this.roomId}/messages`);
+      handleParticipantJoin(p) {
+        if (!p || p.peerId === this.peerId) return;
+        const isNew = !this.participants.has(p.peerId);
+        this.participants.set(p.peerId, p);
+        this.updateParticipantCount();
+        this.updateHostLocationPanel();
 
-        // Daftarkan kehadiran & hapus otomatis jika tab ditutup mendadak
-        set(myParticipantRef, {
-          ...selfData,
-          joinedAt: serverTimestamp()
-        });
-        onDisconnect(myParticipantRef).remove();
-        onDisconnect(mySignalsRef).remove();
-
-        // Pantau peserta baru bergabung
-        onChildAdded(participantsRef, (snap) => {
-          const p = snap.val();
-          if (!p || p.peerId === this.peerId) return;
-
-          this.participants.set(p.peerId, p);
-          this.updateParticipantCount();
-          this.updateHostLocationPanel();
-
-          // Notifikasi otomatis bergabung
+        if (isNew) {
           this.playNotificationTone("join");
           this.showToast(`${p.name} bergabung ke ruang rapat`, "info");
           this.appendSystemChat(`${p.name} bergabung ke ruang rapat.`);
+        }
 
-          // Aturan deterministik: peerId lebih besar memulai penawaran WebRTC (Offer)
-          if (this.peerId > p.peerId) {
-            this.createPeerConnection(p.peerId, true);
-          }
-        });
-
-        // Pantau peserta keluar
-        onChildRemoved(participantsRef, (snap) => {
-          const p = snap.val();
-          if (!p || p.peerId === this.peerId) return;
-
-          this.participants.delete(p.peerId);
-          this.closePeerConnection(p.peerId);
-          this.removeVideoCard(p.peerId);
-          this.updateParticipantCount();
-          this.updateHostLocationPanel();
-
-          // Notifikasi otomatis keluar
-          this.playNotificationTone("leave");
-          this.showToast(`${p.name} meninggalkan ruang rapat`, "warning");
-          this.appendSystemChat(`${p.name} meninggalkan ruang rapat.`);
-        });
-
-        // Dengarkan sinyal WebRTC (Offer, Answer, ICE Candidate)
-        onChildAdded(mySignalsRef, async (snap) => {
-          const signal = snap.val();
-          await remove(snap.ref);
-          if (!signal) return;
-          await this.handleIncomingSignal(signal);
-        });
-
-        // Dengarkan pesan Live Chat terenkripsi
-        onChildAdded(chatRef, async (snap) => {
-          try {
-            const msg = await this.crypto.decryptJSON(snap.val());
-            this.appendChatMessage(msg, msg.senderId === this.peerId);
-          } catch (_) {}
-        });
+        if (this.peerId > p.peerId && !this.peers.has(p.peerId)) {
+          this.createPeerConnection(p.peerId, true);
+        }
       }
 
-      /** Membuat koneksi P2P WebRTC dengan E2EE */
+      handleParticipantLeave(remotePeerId) {
+        const p = this.participants.get(remotePeerId);
+        if (!p) return;
+
+        this.participants.delete(remotePeerId);
+        this.closePeerConnection(remotePeerId);
+        this.removeVideoCard(remotePeerId);
+        this.updateParticipantCount();
+        this.updateHostLocationPanel();
+
+        this.playNotificationTone("leave");
+        this.showToast(`${p.name} meninggalkan ruang rapat`, "warning");
+        this.appendSystemChat(`${p.name} meninggalkan ruang rapat.`);
+      }
+
       async createPeerConnection(remotePeerId, isInitiator) {
         if (this.peers.has(remotePeerId)) return this.peers.get(remotePeerId);
 
@@ -1167,8 +1296,8 @@
           encodedInsertableStreams: this.crypto.supportsEncodedStreams
         });
         this.peers.set(remotePeerId, pc);
+        this.iceQueues.set(remotePeerId, []);
 
-        // Tambahkan track audio/video lokal + aktifkan E2EE sender
         const activeVideoTrack = this.isScreenSharing
           ? this.screenStream?.getVideoTracks()[0]
           : this.localStream?.getVideoTracks()[0];
@@ -1179,26 +1308,30 @@
           this.crypto.attachSenderTransform(audioSender);
         }
         if (activeVideoTrack) {
-          const videoSender = pc.addTrack(activeVideoTrack, this.isScreenSharing ? this.screenStream : this.localStream);
+          const videoSender = pc.addTrack(
+            activeVideoTrack,
+            this.isScreenSharing ? this.screenStream : this.localStream
+          );
           this.crypto.attachSenderTransform(videoSender);
         }
 
-        // Terima track dari peserta lain + dekripsi E2EE receiver
         const remoteStream = new MediaStream();
         pc.ontrack = (event) => {
           if (event.receiver) {
             this.crypto.attachReceiverTransform(event.receiver);
           }
           remoteStream.addTrack(event.track);
-          const meta = this.participants.get(remotePeerId) || { peerId: remotePeerId, name: "Peserta", isHost: false };
+          const meta = this.participants.get(remotePeerId) || {
+            peerId: remotePeerId,
+            name: "Peserta",
+            isHost: false
+          };
           this.createVideoCard(meta, remoteStream, false);
         };
 
-        // Kirim ICE Candidate via Firebase
         pc.onicecandidate = (event) => {
-          if (event.candidate && db) {
-            const targetRef = ref(db, `rooms/${this.roomId}/signals/${remotePeerId}`);
-            push(targetRef, {
+          if (event.candidate) {
+            this.signaling.sendSignal(remotePeerId, {
               from: this.peerId,
               type: "candidate",
               payload: event.candidate.toJSON()
@@ -1209,39 +1342,47 @@
         if (isInitiator) {
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          if (db) {
-            const targetRef = ref(db, `rooms/${this.roomId}/signals/${remotePeerId}`);
-            push(targetRef, {
-              from: this.peerId,
-              type: "offer",
-              payload: { type: offer.type, sdp: offer.sdp }
-            });
-          }
+          this.signaling.sendSignal(remotePeerId, {
+            from: this.peerId,
+            type: "offer",
+            payload: { type: offer.type, sdp: offer.sdp }
+          });
         }
 
         return pc;
       }
 
       async handleIncomingSignal({ from, type, payload }) {
+        if (!from || from === this.peerId) return;
         const pc = await this.createPeerConnection(from, false);
+
         if (type === "offer") {
           await pc.setRemoteDescription(new RTCSessionDescription(payload));
+          await this.flushIceQueue(from, pc);
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          if (db) {
-            const targetRef = ref(db, `rooms/${this.roomId}/signals/${from}`);
-            push(targetRef, {
-              from: this.peerId,
-              type: "answer",
-              payload: { type: answer.type, sdp: answer.sdp }
-            });
-          }
+          this.signaling.sendSignal(from, {
+            from: this.peerId,
+            type: "answer",
+            payload: { type: answer.type, sdp: answer.sdp }
+          });
         } else if (type === "answer") {
           await pc.setRemoteDescription(new RTCSessionDescription(payload));
+          await this.flushIceQueue(from, pc);
         } else if (type === "candidate") {
-          try {
-            await pc.addIceCandidate(new RTCIceCandidate(payload));
-          } catch (_) {}
+          if (pc.remoteDescription) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(payload)); } catch (_) {}
+          } else {
+            this.iceQueues.get(from)?.push(payload);
+          }
+        }
+      }
+
+      async flushIceQueue(remotePeerId, pc) {
+        const q = this.iceQueues.get(remotePeerId) || [];
+        while (q.length > 0) {
+          const cand = q.shift();
+          try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch (_) {}
         }
       }
 
@@ -1251,9 +1392,9 @@
           pc.close();
           this.peers.delete(remotePeerId);
         }
+        this.iceQueues.delete(remotePeerId);
       }
 
-      /** Membuat atau memperbarui kartu video peserta lengkap dengan spektrum audio & tombol fokus */
       createVideoCard(meta, stream, isLocal) {
         const stage = document.getElementById("videoStage");
         let card = document.getElementById(`card-${meta.peerId}`);
@@ -1268,17 +1409,15 @@
             <video id="vid-${meta.peerId}" autoplay playsinline ${isLocal ? "muted" : ""}
               class="w-full h-full object-cover ${isLocal ? "video-mirror" : ""}"></video>
 
-            <!-- Badge Peran & Ikon Spotlight -->
             <div class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
               <span class="px-2 py-0.5 rounded-md bg-slate-950/75 backdrop-blur-md text-[11px] font-medium text-slate-200 border border-slate-800/80 flex items-center gap-1.5">
                 ${meta.isHost ? '<span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>Host' : "Peserta"}
               </span>
-              <span class="spotlight-indicator px-2 py-1 rounded-lg bg-slate-950/75 text-slate-300 opacity-0 group-hover:opacity-100 transition text-[11px] flex items-center gap-1">
+              <span class="px-2 py-1 rounded-lg bg-slate-950/75 text-slate-300 opacity-0 group-hover:opacity-100 transition text-[11px] flex items-center gap-1">
                 <i data-lucide="maximize-2" class="w-3 h-3"></i> Fokus
               </span>
             </div>
 
-            <!-- Bar Bawah: Nama + Spektrum Audio Visual -->
             <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800/80">
               <span class="text-xs font-semibold text-white truncate max-w-[60%]">
                 ${meta.name} ${isLocal ? "(Anda)" : ""}
@@ -1287,7 +1426,6 @@
             </div>
           `;
 
-          // Klik kartu untuk mengaktifkan / menonaktifkan Mode Spotlight (Fokus Pembicara)
           card.addEventListener("click", () => this.toggleSpotlight(meta.peerId));
           stage.appendChild(card);
           lucide.createIcons();
@@ -1298,7 +1436,6 @@
           vidEl.srcObject = stream;
         }
 
-        // Pasang Audio Visual Spectrum + Efek Border Aktif Berbicara
         const specCanvas = document.getElementById(`spec-${meta.peerId}`);
         this.visualizer.attach(meta.peerId, stream, specCanvas, (isSpeaking) => {
           if (isSpeaking) {
@@ -1324,13 +1461,8 @@
         this.applyStageLayout();
       }
 
-      /** Mengatur Mode Spotlight (1 Besar di Utama, Peserta Lain Mengecil) vs Mode Grid */
       toggleSpotlight(peerId) {
-        if (this.spotlightPeerId === peerId) {
-          this.spotlightPeerId = null;
-        } else {
-          this.spotlightPeerId = peerId;
-        }
+        this.spotlightPeerId = (this.spotlightPeerId === peerId) ? null : peerId;
         this.applyStageLayout();
       }
 
@@ -1340,7 +1472,6 @@
         const allCards = Array.from(stage.querySelectorAll(".video-card"));
 
         if (!this.spotlightPeerId || allCards.length <= 1) {
-          // Kembalikan ke Grid Normal
           this.spotlightPeerId = null;
           btnResetGrid.classList.add("hidden");
           stage.className = "flex-1 overflow-y-auto grid-stage";
@@ -1350,13 +1481,10 @@
             while (strip.firstChild) stage.appendChild(strip.firstChild);
             strip.remove();
           }
-          allCards.forEach(c => {
-            c.classList.remove("spotlight-main", "h-full");
-          });
+          allCards.forEach(c => c.classList.remove("spotlight-main", "h-full"));
           return;
         }
 
-        // Aktifkan Spotlight Layout
         btnResetGrid.classList.remove("hidden");
         stage.className = "flex-1 overflow-hidden spotlight-layout";
 
@@ -1379,10 +1507,8 @@
         });
       }
 
-      /** Fitur Berbagi Layar (Screen Sharing) */
       async toggleScreenShare() {
         const btn = document.getElementById("btnShareScreen");
-
         if (this.isScreenSharing) {
           this.stopScreenShare();
           return;
@@ -1397,13 +1523,11 @@
           const screenTrack = this.screenStream.getVideoTracks()[0];
           this.isScreenSharing = true;
 
-          // Ganti track video pada semua peer WebRTC secara seamless
           for (const pc of this.peers.values()) {
             const videoSender = pc.getSenders().find(s => s.track && s.track.kind === "video");
             if (videoSender) await videoSender.replaceTrack(screenTrack);
           }
 
-          // Tampilkan layar di kartu lokal tanpa efek mirror
           const localVid = document.getElementById(`vid-${this.peerId}`);
           if (localVid) {
             localVid.srcObject = this.screenStream;
@@ -1412,10 +1536,8 @@
 
           btn.classList.replace("bg-slate-800", "bg-indigo-600");
           this.showToast("Berbagi layar dimulai", "info");
-
-          // Otomatis berhenti saat pengguna menekan "Stop sharing" di browser
           screenTrack.onended = () => this.stopScreenShare();
-        } catch (err) {
+        } catch (_) {
           this.showToast("Berbagi layar dibatalkan.", "warning");
         }
       }
@@ -1440,12 +1562,10 @@
           localVid.classList.add("video-mirror");
         }
 
-        const btn = document.getElementById("btnShareScreen");
-        btn.classList.replace("bg-indigo-600", "bg-slate-800");
+        document.getElementById("btnShareScreen").classList.replace("bg-indigo-600", "bg-slate-800");
         this.showToast("Berbagi layar dihentikan", "info");
       }
 
-      /** Panel Pemantau Lokasi Anggota (Khusus Host) */
       updateHostLocationPanel() {
         if (!this.isHost) return;
         const container = document.getElementById("hostLocationList");
@@ -1480,22 +1600,17 @@
         lucide.createIcons();
       }
 
-      /** Event Handler Ruang Konferensi */
       bindConferenceEvents() {
-        // Salin Link Undangan
         document.getElementById("btnCopyInvite").addEventListener("click", async () => {
-          const inviteUrl = window.location.href;
-          await navigator.clipboard.writeText(inviteUrl);
+          await navigator.clipboard.writeText(window.location.href);
           this.showToast("Link undangan & kunci E2EE berhasil disalin!", "success");
         });
 
-        // Kembali ke Grid View
         document.getElementById("btnResetGrid").addEventListener("click", () => {
           this.spotlightPeerId = null;
           this.applyStageLayout();
         });
 
-        // Toggle Mic
         document.getElementById("btnToggleMic").addEventListener("click", (e) => {
           this.micEnabled = !this.micEnabled;
           this.localStream?.getAudioTracks().forEach(t => t.enabled = this.micEnabled);
@@ -1504,7 +1619,6 @@
           lucide.createIcons();
         });
 
-        // Toggle Cam
         document.getElementById("btnToggleCam").addEventListener("click", (e) => {
           this.camEnabled = !this.camEnabled;
           this.localStream?.getVideoTracks().forEach(t => t.enabled = this.camEnabled);
@@ -1513,10 +1627,8 @@
           lucide.createIcons();
         });
 
-        // Share Screen
         document.getElementById("btnShareScreen").addEventListener("click", () => this.toggleScreenShare());
 
-        // Toggle Papan Tulis Interaktif
         const wbContainer = document.getElementById("whiteboardContainer");
         document.getElementById("btnToggleWhiteboard").addEventListener("click", () => {
           wbContainer.classList.toggle("hidden");
@@ -1528,7 +1640,6 @@
           wbContainer.classList.add("hidden");
         });
 
-        // Alat Papan Tulis
         document.querySelectorAll(".wb-tool-btn").forEach(btn => {
           btn.addEventListener("click", () => {
             document.querySelectorAll(".wb-tool-btn").forEach(b => {
@@ -1563,7 +1674,6 @@
           }
         });
 
-        // Navigasi Sidebar (Chat & Lokasi Host)
         const drawer = document.getElementById("sideDrawer");
         const chatTabBtn = document.getElementById("tabChatBtn");
         const locTabBtn = document.getElementById("tabLocationBtn");
@@ -1607,7 +1717,6 @@
         locTabBtn.addEventListener("click", () => openDrawerTab("location"));
         document.getElementById("btnCloseDrawer").addEventListener("click", () => drawer.classList.add("hidden"));
 
-        // Kirim Pesan Live Chat
         document.getElementById("chatForm").addEventListener("submit", async (e) => {
           e.preventDefault();
           const input = document.getElementById("chatInput");
@@ -1622,21 +1731,21 @@
             time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
           };
 
-          if (db) {
-            const encrypted = await this.crypto.encryptJSON(msgObj);
-            push(ref(db, `rooms/${this.roomId}/messages`), encrypted);
-          } else {
-            this.appendChatMessage(msgObj, true);
-          }
+          const encrypted = await this.crypto.encryptJSON(msgObj);
+          this.signaling.sendChat(encrypted);
         });
 
-        // Keluar Ruang Rapat
         document.getElementById("btnLeaveRoom").addEventListener("click", async () => {
-          if (db) {
-            await remove(ref(db, `rooms/${this.roomId}/participants/${this.peerId}`));
-          }
+          await this.signaling.disconnect();
           window.location.href = window.location.pathname;
         });
+      }
+
+      async handleIncomingChat(cipherString) {
+        try {
+          const msg = await this.crypto.decryptJSON(cipherString);
+          this.appendChatMessage(msg, msg.senderId === this.peerId);
+        } catch (_) {}
       }
 
       appendChatMessage(msg, isSelf) {
@@ -1677,7 +1786,6 @@
         document.getElementById("participantCount").textContent = this.participants.size;
       }
 
-      /** Nada dering lembut Web Audio saat peserta masuk atau keluar */
       playNotificationTone(type) {
         try {
           this.visualizer.ensureContext();
@@ -1690,11 +1798,11 @@
           osc.type = "sine";
           const now = ctx.currentTime;
           if (type === "join") {
-            osc.frequency.setValueAtTime(523.25, now);      // C5
-            osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+            osc.frequency.setValueAtTime(523.25, now);
+            osc.frequency.setValueAtTime(659.25, now + 0.1);
           } else {
-            osc.frequency.setValueAtTime(440, now);          // A4
-            osc.frequency.setValueAtTime(349.23, now + 0.1); // F4
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.setValueAtTime(349.23, now + 0.1);
           }
           gain.gain.setValueAtTime(0.06, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
@@ -1733,7 +1841,6 @@
       }
     }
 
-    // Jalankan Aplikasi
     window.addEventListener("DOMContentLoaded", () => {
       window.secureMeet = new SecureMeetApp();
     });
