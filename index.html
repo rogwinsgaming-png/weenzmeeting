@@ -3,36 +3,59 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>SecureMeet E2EE — Video Conference & Kolaborasi Tim</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <title>SecureMeet E2EE v4.0 — Video Conference & Kolaborasi Tim</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- MQTT.js untuk Real-Time P2P Signaling -->
+  <!-- MQTT.js untuk Real-Time Multi-Broker Signaling -->
   <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 
   <style>
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    /* Menggunakan Dynamic Viewport Height (100dvh) agar pas di layar HP tanpa terpotong address bar */
+    html, body {
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
-    ::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.8); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.85); border-radius: 9999px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 1); }
 
     .video-mirror { transform: scaleX(-1); }
 
+    /* Kamera tanpa crop: menyesuaikan aspek rasio laptop (landscape) maupun HP (portrait) */
+    .video-uncropped {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background-color: #020617;
+    }
+
     /* Tata Letak Grid Dinamis */
     .grid-stage {
       display: grid;
-      gap: 0.75rem;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      align-content: center;
+      gap: 0.65rem;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-auto-rows: minmax(180px, 1fr);
+    }
+
+    @media (max-width: 640px) {
+      .grid-stage {
+        grid-template-columns: 1fr;
+        grid-auto-rows: minmax(170px, 1fr);
+      }
     }
 
     /* Tata Letak Spotlight (1 Pembicara Utama Besar + Peserta Lain Mengecil) */
     .spotlight-layout {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.65rem;
       height: 100%;
     }
     @media (min-width: 1024px) {
@@ -43,16 +66,16 @@
 
     .spotlight-main {
       flex: 1;
-      min-height: 56%;
+      min-height: 55%;
       position: relative;
     }
 
     .spotlight-strip {
       display: flex;
-      gap: 0.65rem;
+      gap: 0.55rem;
       overflow-x: auto;
       overflow-y: hidden;
-      padding-bottom: 4px;
+      padding-bottom: 2px;
       flex-shrink: 0;
     }
     @media (min-width: 1024px) {
@@ -66,14 +89,16 @@
     }
 
     .spotlight-strip .video-card {
-      width: 155px;
-      height: 108px;
+      width: 145px;
+      height: 105px;
+      min-height: 105px;
       flex-shrink: 0;
     }
     @media (min-width: 1024px) {
       .spotlight-strip .video-card {
         width: 100%;
         height: 145px;
+        min-height: 145px;
       }
     }
 
@@ -84,52 +109,52 @@
     .toast-enter { animation: slideInRight 0.25s ease-out forwards; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white overflow-hidden h-screen flex flex-col">
+<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white flex flex-col">
 
   <!-- =====================================================================
        1. HALAMAN LOBI / VERIFIKASI LOKASI & MASUK RUANG RAPAT
   ====================================================================== -->
   <div id="lobbyScreen" class="flex-1 overflow-y-auto flex items-center justify-center p-4 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
-    <div class="w-full max-w-4xl space-y-4">
+    <div class="w-full max-w-4xl space-y-4 my-auto">
 
       <!-- Peringatan Jika Dibuka dari In-App Browser (WhatsApp/Instagram/Line) -->
       <div id="inAppBrowserBanner" class="hidden p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-3">
         <i data-lucide="external-link" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
         <div>
           <p class="font-bold text-amber-300 text-sm">Buka Tautan di Browser Utama (Chrome / Safari)</p>
-          <p class="mt-0.5 leading-relaxed">Anda membuka tautan ini dari browser internal aplikasi (seperti WhatsApp) yang sering memblokir kamera dan GPS. Tekan ikon <strong>titik tiga (⋮)</strong> atau <strong>Kompas</strong> di pojok layar, lalu pilih <strong>"Buka di Chrome / Safari"</strong>.</p>
+          <p class="mt-0.5 leading-relaxed">Anda membuka tautan ini dari browser internal aplikasi yang sering memblokir kamera dan GPS. Tekan ikon <strong>titik tiga (⋮)</strong> atau <strong>Kompas</strong> di pojok layar, lalu pilih <strong>"Buka di Chrome / Safari"</strong>.</p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-5 md:p-8 shadow-2xl">
         
-        <!-- Kolom Kiri: Preview Kamera & Spektrum Audio -->
+        <!-- Kolom Kiri: Preview Kamera Utuh Tanpa Crop & Spektrum Audio -->
         <div class="lg:col-span-7 flex flex-col justify-between space-y-4">
           <div>
-            <div class="flex flex-wrap items-center gap-2 mb-3">
+            <div class="flex flex-wrap items-center gap-2 mb-2.5">
               <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
                 <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-                <span>End-to-End Encrypted (AES-256-GCM)</span>
+                <span>E2EE AES-256-GCM</span>
               </span>
               <span id="signalingModeBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-medium">
                 <i data-lucide="zap" class="w-3.5 h-3.5"></i>
-                <span>Instant P2P Cloud</span>
+                <span>Multi-Path P2P v4.0</span>
               </span>
             </div>
             <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white">SecureMeet Conference</h1>
-            <p class="text-slate-400 text-sm mt-1">Video conference HD terenkripsi dengan papan tulis interaktif dan verifikasi lokasi peserta.</p>
+            <p class="text-slate-400 text-xs md:text-sm mt-1">Video conference HD terenkripsi dengan tampilan kamera penuh, papan tulis tim, dan verifikasi lokasi.</p>
           </div>
 
-          <!-- Preview Video Lokal -->
+          <!-- Preview Video Lokal (Uncropped) -->
           <div class="relative aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner">
-            <video id="lobbyPreviewVideo" autoplay muted playsinline class="w-full h-full object-cover video-mirror"></video>
+            <video id="lobbyPreviewVideo" autoplay muted playsinline class="video-uncropped video-mirror"></video>
             <div id="lobbyCameraOffPlaceholder" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 px-4 text-center">
               <i data-lucide="video-off" class="w-10 h-10 mb-2 text-slate-500"></i>
               <span id="lobbyCameraStatusText" class="text-xs">Kamera Dinonaktifkan</span>
             </div>
 
             <!-- Spektrum Audio Lobi -->
-            <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between bg-slate-950/75 backdrop-blur-md px-3 py-2 rounded-lg border border-slate-800/80">
+            <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-800/80">
               <div class="flex items-center gap-2">
                 <button id="lobbyToggleMic" type="button" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition" title="Toggle Mikrofon">
                   <i data-lucide="mic" class="w-4 h-4"></i>
@@ -140,14 +165,14 @@
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-[11px] text-slate-400 hidden sm:inline">Spektrum Audio:</span>
-                <canvas id="lobbyAudioCanvas" width="120" height="28" class="rounded bg-slate-900/90"></canvas>
+                <canvas id="lobbyAudioCanvas" width="110" height="24" class="rounded bg-slate-900/90"></canvas>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Kolom Kanan: Form Gabung / Buat Ruang & Wajib Izin Lokasi -->
-        <div class="lg:col-span-5 flex flex-col justify-center space-y-4 bg-slate-950/60 p-5 rounded-xl border border-slate-800/80">
+        <div class="lg:col-span-5 flex flex-col justify-center space-y-4 bg-slate-950/60 p-4 md:p-5 rounded-xl border border-slate-800/80">
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-1.5">Nama Tampilan Anda</label>
             <input id="userNameInput" type="text" placeholder="Ketik nama Anda di sini..." maxlength="32"
@@ -219,53 +244,66 @@
   <!-- =====================================================================
        2. RUANG KONFERENSI UTAMA
   ====================================================================== -->
-  <div id="conferenceScreen" class="hidden flex-1 flex flex-col h-screen overflow-hidden">
+  <div id="conferenceScreen" class="hidden flex-1 flex flex-col overflow-hidden">
     
     <!-- Top Header Bar -->
-    <header class="h-14 px-4 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 flex items-center justify-between shrink-0 z-20">
-      <div class="flex items-center gap-3 min-w-0">
+    <header class="h-13 py-2 px-3 sm:px-4 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 flex items-center justify-between shrink-0 z-20">
+      <div class="flex items-center gap-2.5 min-w-0">
         <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
           <i data-lucide="video" class="w-4 h-4 text-white"></i>
         </div>
         <div class="min-w-0">
-          <div class="flex items-center gap-2">
-            <h2 class="text-sm font-bold text-white truncate">Ruang: <span id="headerRoomId" class="font-mono text-indigo-400"></span></h2>
-            <span id="roleBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">HOST</span>
+          <div class="flex items-center gap-1.5">
+            <h2 class="text-xs sm:text-sm font-bold text-white truncate">Ruang: <span id="headerRoomId" class="font-mono text-indigo-400"></span></h2>
+            <span id="roleBadge" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">HOST</span>
           </div>
-          <div class="flex items-center gap-2 text-[11px] text-emerald-400">
-            <span id="connStatusDot" class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-            <span id="e2eeStatusLabel">Menghubungkan jaringan P2P terenkripsi...</span>
+          <div class="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-emerald-400 truncate">
+            <span id="connStatusDot" class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+            <span id="e2eeStatusLabel" class="truncate">Menghubungkan jaringan P2P...</span>
           </div>
         </div>
       </div>
 
-      <!-- Kontrol Tata Letak & Salin Link -->
-      <div class="flex items-center gap-2">
-        <button id="btnResetGrid" type="button" class="hidden px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
+      <!-- Kontrol Cepat Header: Grid, Chat, Lokasi Host, Salin Link & Jumlah Peserta -->
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <button id="btnResetGrid" type="button" class="hidden px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 flex items-center gap-1 transition" title="Kembali ke Tampilan Grid">
           <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-indigo-400"></i>
-          <span class="hidden sm:inline">Tampilan Grid</span>
+          <span class="hidden md:inline">Grid</span>
         </button>
 
-        <button id="btnCopyInvite" type="button" class="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-xs font-medium flex items-center gap-1.5 transition">
+        <!-- Tombol Chat Selalu Terlihat di Header (Termasuk Mobile) -->
+        <button id="btnHeaderChat" type="button" class="relative px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition" title="Buka Obrolan Langsung">
+          <i data-lucide="message-square" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span class="hidden sm:inline">Chat</span>
+          <span id="headerUnreadBadge" class="hidden px-1.5 py-0.2 rounded-full bg-rose-500 text-[10px] font-bold text-white">0</span>
+        </button>
+
+        <!-- Tombol Lokasi Khusus Host di Header -->
+        <button id="btnHeaderLocations" type="button" class="hidden px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-medium flex items-center gap-1.5 transition" title="Pantau Lokasi Peserta">
+          <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Lokasi</span>
+        </button>
+
+        <button id="btnCopyInvite" type="button" class="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5 transition" title="Salin Tautan Undangan">
           <i data-lucide="link" class="w-3.5 h-3.5"></i>
-          <span class="hidden sm:inline">Salin Link Peserta</span>
+          <span class="hidden md:inline">Salin Link</span>
         </button>
 
-        <div class="px-2.5 py-1.5 rounded-lg bg-slate-800 text-xs font-medium text-slate-300 flex items-center gap-1.5" title="Jumlah Peserta Terhubung">
-          <i data-lucide="users" class="w-3.5 h-3.5 text-slate-400"></i>
+        <div class="px-2 py-1.5 rounded-lg bg-slate-800 text-xs font-semibold text-slate-200 flex items-center gap-1 border border-slate-700" title="Jumlah Peserta Terhubung">
+          <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i>
           <span id="participantCount">1</span>
         </div>
       </div>
     </header>
 
-    <!-- Area Tengah: Panggung Video + Papan Tulis + Panel Samping -->
-    <main class="flex-1 flex overflow-hidden relative">
+    <!-- Area Tengah: Split-View Responsif (Video Stage + Side/Bottom Panel) -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
       
       <!-- Container Video & Whiteboard -->
-      <div class="flex-1 flex flex-col p-3 overflow-hidden relative">
+      <div class="flex-1 flex flex-col p-2.5 sm:p-3 overflow-hidden relative min-h-0">
         
         <!-- Panel Papan Tulis Interaktif -->
-        <div id="whiteboardContainer" class="hidden mb-3 flex-1 min-h-[45%] bg-white rounded-2xl shadow-xl border border-slate-700 flex flex-col overflow-hidden relative z-10">
+        <div id="whiteboardContainer" class="hidden mb-2.5 flex-1 min-h-[45%] bg-white rounded-2xl shadow-xl border border-slate-700 flex flex-col overflow-hidden relative z-10">
           <div class="bg-slate-900 px-3 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800">
             <div class="flex items-center gap-1.5">
               <span class="text-xs font-semibold text-white mr-2 flex items-center gap-1.5">
@@ -306,86 +344,114 @@
         </div>
 
         <!-- Stage Video (Grid & Spotlight Mode) -->
-        <div id="videoStage" class="flex-1 overflow-y-auto grid-stage"></div>
+        <div id="videoStage" class="flex-1 overflow-y-auto grid-stage min-h-0"></div>
+
+        <!-- Floating Pratinjau Pesan Masuk (Tampil saat panel chat tertutup) -->
+        <button id="floatingChatPreview" type="button" class="hidden absolute bottom-3 left-3 right-3 sm:left-auto sm:right-4 sm:max-w-sm bg-slate-900/95 hover:bg-slate-800 backdrop-blur-md border border-indigo-500/40 rounded-xl px-3.5 py-2 shadow-xl flex items-center gap-2.5 text-left transition z-20">
+          <i data-lucide="message-circle" class="w-4 h-4 text-indigo-400 shrink-0"></i>
+          <div class="min-w-0 flex-1">
+            <p id="floatingChatSender" class="text-[10px] font-bold text-indigo-300 truncate"></p>
+            <p id="floatingChatText" class="text-xs text-slate-200 truncate"></p>
+          </div>
+          <span class="text-[10px] text-indigo-400 font-semibold shrink-0">Balas</span>
+        </button>
       </div>
 
-      <!-- Sidebar Kanan: Live Chat & Pantau Lokasi Host -->
-      <aside id="sideDrawer" class="hidden w-full sm:w-80 lg:w-96 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0 z-30 absolute inset-y-0 right-0 sm:static">
-        <div class="h-12 px-3 border-b border-slate-800 flex items-center justify-between">
-          <div class="flex items-center gap-1">
-            <button id="tabChatBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition">
-              Obrolan Langsung
+      <!-- Panel Fungsional: Split-View Bawah di HP (46% tinggi) & Sidebar Kanan di Laptop/PC -->
+      <aside id="sideDrawer" class="hidden h-[46%] lg:h-auto w-full lg:w-96 bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col shrink-0 z-30">
+        <div class="h-11 px-3 border-b border-slate-800 flex items-center justify-between shrink-0 bg-slate-950/50">
+          <div class="flex items-center gap-1.5">
+            <button id="tabChatBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition flex items-center gap-1.5">
+              <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+              <span>Obrolan Langsung</span>
             </button>
-            <button id="tabLocationBtn" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1">
+            <button id="tabLocationBtn" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
               <i data-lucide="map-pin" class="w-3.5 h-3.5 text-emerald-400"></i>
               <span>Lokasi Peserta</span>
             </button>
           </div>
-          <button id="btnCloseDrawer" type="button" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
-            <i data-lucide="x" class="w-4 h-4"></i>
+          <button id="btnCloseDrawer" type="button" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400" title="Tutup Panel">
+            <i data-lucide="chevron-down" class="w-4 h-4 lg:hidden"></i>
+            <i data-lucide="x" class="w-4 h-4 hidden lg:block"></i>
           </button>
         </div>
 
         <!-- Konten Tab 1: Live Chat Terenkripsi -->
-        <div id="chatTabContent" class="flex-1 flex flex-col overflow-hidden">
+        <div id="chatTabContent" class="flex-1 flex flex-col overflow-hidden min-h-0">
           <div id="chatMessagesList" class="flex-1 overflow-y-auto p-3 space-y-2.5 text-sm">
-            <div class="text-center text-[11px] text-slate-500 py-2">
+            <div class="text-center text-[11px] text-slate-500 py-1.5">
               Pesan di ruang ini dilindungi enkripsi ujung-ke-ujung (AES-256-GCM).
             </div>
           </div>
-          <form id="chatForm" class="p-3 border-t border-slate-800 flex gap-2">
+          <form id="chatForm" class="p-2.5 border-t border-slate-800 flex gap-2 bg-slate-950/60 shrink-0">
             <input id="chatInput" type="text" placeholder="Ketik pesan terenkripsi..." autocomplete="off"
-              class="flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
-            <button type="submit" class="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition">
+              class="flex-1 px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+            <button type="submit" class="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center justify-center">
               <i data-lucide="send" class="w-4 h-4"></i>
             </button>
           </form>
         </div>
 
         <!-- Konten Tab 2: Panel Pemantauan Lokasi Peserta (Khusus Host) -->
-        <div id="locationTabContent" class="hidden flex-1 overflow-y-auto p-3 space-y-3">
-          <div class="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300">
-            Panel khusus <strong>Host</strong>: Menampilkan titik koordinat GPS terkini setiap peserta yang tergabung.
+        <div id="locationTabContent" class="hidden flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300">
+            <span>Titik koordinat GPS aktif seluruh peserta:</span>
+            <button id="btnRefreshLocations" type="button" class="px-2 py-1 rounded bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 font-semibold transition">
+              Perbarui
+            </button>
           </div>
-          <div id="hostLocationList" class="space-y-2.5"></div>
+
+          <!-- Peta Interaktif Tersemat untuk Peserta Terpilih -->
+          <div id="hostMapPreviewBox" class="hidden rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+            <div class="px-3 py-1.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-[11px]">
+              <span id="hostMapPreviewTitle" class="font-semibold text-slate-200">Pratinjau Peta</span>
+              <a id="hostMapExternalLink" href="#" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:underline flex items-center gap-1">
+                <span>Google Maps</span>
+                <i data-lucide="external-link" class="w-3 h-3"></i>
+              </a>
+            </div>
+            <iframe id="hostMapIframe" class="w-full h-36 border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+          </div>
+
+          <div id="hostLocationList" class="space-y-2"></div>
         </div>
       </aside>
     </main>
 
-    <!-- Bottom Control Bar -->
-    <footer class="h-16 px-4 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex items-center justify-center gap-2 sm:gap-3 shrink-0 z-20">
-      <button id="btnToggleMic" type="button" class="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition" title="Mikrofon">
+    <!-- Bottom Control Bar (Selalu Terlihat di Layar HP & Desktop) -->
+    <footer class="h-15 py-2 px-3 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex items-center justify-center gap-2 sm:gap-3 shrink-0 z-20">
+      <button id="btnToggleMic" type="button" class="p-2.5 sm:p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition" title="Mikrofon">
         <i data-lucide="mic" class="w-5 h-5"></i>
       </button>
 
-      <button id="btnToggleCam" type="button" class="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition" title="Kamera">
+      <button id="btnToggleCam" type="button" class="p-2.5 sm:p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition" title="Kamera">
         <i data-lucide="video" class="w-5 h-5"></i>
       </button>
 
-      <button id="btnShareScreen" type="button" class="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition flex items-center gap-2" title="Berbagi Layar">
+      <button id="btnShareScreen" type="button" class="p-2.5 sm:p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition flex items-center gap-2" title="Berbagi Layar">
         <i data-lucide="monitor-up" class="w-5 h-5"></i>
         <span class="hidden md:inline text-xs font-medium">Bagikan Layar</span>
       </button>
 
-      <button id="btnToggleWhiteboard" type="button" class="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition flex items-center gap-2" title="Papan Tulis Interaktif">
+      <button id="btnToggleWhiteboard" type="button" class="p-2.5 sm:p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition flex items-center gap-2" title="Papan Tulis Interaktif">
         <i data-lucide="pen-tool" class="w-5 h-5"></i>
         <span class="hidden md:inline text-xs font-medium">Papan Tulis</span>
       </button>
 
-      <button id="btnToggleChat" type="button" class="relative p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition flex items-center gap-2" title="Obrolan">
+      <button id="btnToggleChat" type="button" class="relative p-2.5 sm:p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition flex items-center gap-2" title="Obrolan Langsung">
         <i data-lucide="message-square" class="w-5 h-5"></i>
         <span class="hidden md:inline text-xs font-medium">Obrolan</span>
         <span id="unreadChatBadge" class="hidden absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-[10px] font-bold flex items-center justify-center">0</span>
       </button>
 
-      <button id="btnHostLocations" type="button" class="hidden p-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-2" title="Pantau Lokasi Peserta">
+      <button id="btnHostLocations" type="button" class="hidden p-2.5 sm:p-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-2" title="Pantau Lokasi Peserta">
         <i data-lucide="map-pin" class="w-5 h-5"></i>
         <span class="hidden md:inline text-xs font-medium">Lokasi</span>
       </button>
 
-      <div class="h-6 w-px bg-slate-800 mx-1"></div>
+      <div class="h-6 w-px bg-slate-800 mx-0.5"></div>
 
-      <button id="btnLeaveRoom" type="button" class="px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-rose-600/20 transition">
+      <button id="btnLeaveRoom" type="button" class="px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-lg shadow-rose-600/20 transition">
         <i data-lucide="phone-off" class="w-4 h-4"></i>
         <span>Keluar</span>
       </button>
@@ -393,10 +459,10 @@
   </div>
 
   <!-- Container Notifikasi Otomatis (Toast) -->
-  <div id="toastContainer" class="fixed top-16 right-4 z-50 flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
+  <div id="toastContainer" class="fixed top-15 right-3 z-50 flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
 
   <!-- =====================================================================
-       3. LOGIKA APLIKASI (ACTIVE HANDSHAKE + DUAL-BROKER + WEBRTC + E2EE)
+       3. LOGIKA APLIKASI (MULTI-BROKER + STUN/TURN + UNCROPPED VIDEO + E2EE)
   ====================================================================== -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -408,8 +474,6 @@
     /**
      * =========================================================================
      * OPSIONAL: KONFIGURASI FIREBASE REALTIME DATABASE
-     * Biarkan seperti ini agar langsung berjalan otomatis tanpa setup Firebase.
-     * Jika diisi kredensial Firebase Anda, aplikasi otomatis beralih ke Firebase.
      * =========================================================================
      */
     const FIREBASE_CONFIG = {
@@ -426,12 +490,27 @@
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" },
-        { urls: "stun:stun.cloudflare.com:3478" }
-      ]
+        { urls: "stun:stun.cloudflare.com:3478" },
+        {
+          urls: "turn:openrelay.metered.ca:80",
+          username: "openrelayproject",
+          credential: "openrelayproject"
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443",
+          username: "openrelayproject",
+          credential: "openrelayproject"
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443?transport=tcp",
+          username: "openrelayproject",
+          credential: "openrelayproject"
+        }
+      ],
+      iceCandidatePoolSize: 10
     };
 
-    // Daftar Broker WSS dengan Failover Otomatis
+    // Terhubung ke kedua broker sekaligus agar tidak pernah terisolasi antar-ISP
     const WSS_BROKERS = [
       "wss://broker.emqx.io:8084/mqtt",
       "wss://broker.hivemq.com:8884/mqtt"
@@ -444,7 +523,7 @@
       const app = initializeApp(FIREBASE_CONFIG);
       firebaseDb = getDatabase(app);
       const badge = document.getElementById("signalingModeBadge");
-      badge.innerHTML = `<i data-lucide="database" class="w-3.5 h-3.5"></i><span>Firebase Realtime DB Aktif</span>`;
+      badge.innerHTML = `<i data-lucide="database" class="w-3.5 h-3.5"></i><span>Firebase + TURN v4.0</span>`;
     }
 
     /**
@@ -465,7 +544,6 @@
           .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
       }
 
-      /** Derivasi kunci AES-256 deterministik dari Room ID + Hash Secret */
       async initKey(roomId, hashSecret = "") {
         const seed = `${roomId.toUpperCase()}::${hashSecret || "SECUREMEET_DEFAULT_KEY"}`;
         const enc = new TextEncoder();
@@ -567,16 +645,14 @@
 
     /**
      * =========================================================================
-     * MODUL 2: ACTIVE HANDSHAKE SIGNALING SERVICE (FAILOVER + FIREBASE)
-     * Menggunakan protokol hello / welcome / heartbeat agar Host & Peserta
-     * langsung saling menemukan tanpa bergantung pada cache server.
+     * MODUL 2: MULTI-BROKER ACTIVE SIGNALING SERVICE
      * =========================================================================
      */
     class SignalingService {
       constructor(callbacks) {
         this.cb = callbacks;
-        this.mqttClient = null;
-        this.brokerIndex = 0;
+        this.clients = [];
+        this.seenMsgIds = new Set();
         this.roomId = "";
         this.selfData = null;
         this.heartbeatTimer = null;
@@ -591,111 +667,122 @@
         if (useFirebase && firebaseDb) {
           this.connectFirebase();
         } else {
-          this.connectWSSWithFailover();
+          this.connectAllWSSBrokers();
         }
       }
 
-      connectWSSWithFailover() {
-        if (this.isClosed) return;
-        const brokerUrl = WSS_BROKERS[this.brokerIndex % WSS_BROKERS.length];
-        const prefix = `securemeet_v2/${this.roomId}`;
+      updateSelfData(newSelfData) {
+        this.selfData = newSelfData;
+        this.announcePresence();
+      }
+
+      announcePresence() {
+        this.broadcastRoom({ type: "hello", sender: this.selfData });
+      }
+
+      connectAllWSSBrokers() {
+        const prefix = `securemeet_v4/${this.roomId}`;
         const roomBroadcastTopic = `${prefix}/broadcast`;
         const myDirectTopic = `${prefix}/direct/${this.selfData.peerId}`;
+        let connectedCount = 0;
 
-        this.mqttClient = window.mqtt.connect(brokerUrl, {
-          clientId: `sm_${this.selfData.peerId}_${Math.random().toString(16).slice(2, 6)}`,
-          clean: true,
-          connectTimeout: 6000,
-          reconnectPeriod: 2000,
-          will: {
-            topic: roomBroadcastTopic,
-            payload: JSON.stringify({
-              type: "leave",
-              peerId: this.selfData.peerId
-            }),
-            qos: 1,
-            retain: false
-          }
-        });
-
-        let connectedOnce = false;
-        const failoverTimer = setTimeout(() => {
-          if (!connectedOnce && !this.isClosed) {
-            try { this.mqttClient.end(true); } catch (_) {}
-            this.brokerIndex++;
-            this.connectWSSWithFailover();
-          }
-        }, 6500);
-
-        this.mqttClient.on("connect", () => {
-          connectedOnce = true;
-          clearTimeout(failoverTimer);
-          this.cb.onConnected?.("E2EE Aktif • AES-256-GCM (Terhubung)");
-
-          this.mqttClient.subscribe([roomBroadcastTopic, myDirectTopic], { qos: 1 }, () => {
-            // Kirim sapaan "hello" berulang di 3 detik pertama agar 100% diterima semua anggota
-            this.broadcastRoom({ type: "hello", sender: this.selfData });
-            setTimeout(() => this.broadcastRoom({ type: "hello", sender: this.selfData }), 1200);
-            setTimeout(() => this.broadcastRoom({ type: "hello", sender: this.selfData }), 2800);
+        WSS_BROKERS.forEach((brokerUrl, idx) => {
+          const client = window.mqtt.connect(brokerUrl, {
+            clientId: `sm4_${this.selfData.peerId}_${idx}_${Math.random().toString(16).slice(2, 6)}`,
+            clean: true,
+            connectTimeout: 8000,
+            reconnectPeriod: 2500,
+            will: {
+              topic: roomBroadcastTopic,
+              payload: JSON.stringify({
+                msgId: `leave_${this.selfData.peerId}_${Date.now()}`,
+                type: "leave",
+                peerId: this.selfData.peerId
+              }),
+              qos: 1,
+              retain: false
+            }
           });
 
-          // Heartbeat berkala setiap 5 detik untuk menjaga daftar peserta tetap sinkron
-          clearInterval(this.heartbeatTimer);
-          this.heartbeatTimer = setInterval(() => {
-            if (this.mqttClient?.connected) {
-              this.broadcastRoom({ type: "heartbeat", sender: this.selfData });
-            }
-          }, 5000);
+          client.on("connect", () => {
+            connectedCount++;
+            this.cb.onConnected?.(`E2EE Aktif • Terhubung (${connectedCount} Jalur)`);
+
+            client.subscribe([roomBroadcastTopic, myDirectTopic], { qos: 1 }, () => {
+              this.announcePresence();
+              setTimeout(() => this.announcePresence(), 1000);
+              setTimeout(() => this.announcePresence(), 2500);
+            });
+          });
+
+          client.on("message", (topic, payloadBuf) => {
+            try {
+              const msg = JSON.parse(payloadBuf.toString());
+              if (!msg) return;
+
+              // Deduplikasi pesan agar tidak diproses dua kali dari 2 broker
+              if (msg.msgId) {
+                if (this.seenMsgIds.has(msg.msgId)) return;
+                this.seenMsgIds.add(msg.msgId);
+                if (this.seenMsgIds.size > 1500) {
+                  const firstKey = this.seenMsgIds.values().next().value;
+                  this.seenMsgIds.delete(firstKey);
+                }
+              }
+
+              if (msg.sender?.peerId === this.selfData.peerId || msg.peerId === this.selfData.peerId) return;
+
+              if (msg.type === "hello") {
+                this.cb.onParticipantDiscovered?.(msg.sender, true);
+                this.sendDirect(msg.sender.peerId, {
+                  type: "welcome",
+                  sender: this.selfData
+                });
+              } else if (msg.type === "welcome" || msg.type === "heartbeat") {
+                this.cb.onParticipantDiscovered?.(msg.sender, false);
+              } else if (msg.type === "leave") {
+                this.cb.onParticipantLeave?.(msg.peerId);
+              } else if (msg.type === "signal") {
+                this.cb.onSignal?.(msg.payload);
+              } else if (msg.type === "chat") {
+                this.cb.onChat?.(msg.payload);
+              } else if (msg.type === "whiteboard") {
+                this.cb.onWhiteboard?.(msg.payload);
+              }
+            } catch (_) {}
+          });
+
+          this.clients.push(client);
         });
 
-        this.mqttClient.on("message", (topic, payloadBuf) => {
-          try {
-            const msg = JSON.parse(payloadBuf.toString());
-            if (!msg || msg.sender?.peerId === this.selfData.peerId || msg.peerId === this.selfData.peerId) return;
+        clearInterval(this.heartbeatTimer);
+        this.heartbeatTimer = setInterval(() => {
+          this.broadcastRoom({ type: "heartbeat", sender: this.selfData });
+        }, 3500);
+      }
 
-            if (msg.type === "hello") {
-              this.cb.onParticipantDiscovered?.(msg.sender, true);
-              // Balas langsung dengan profil kita agar pendatang baru segera melihat kita
-              this.sendDirect(msg.sender.peerId, {
-                type: "welcome",
-                sender: this.selfData
-              });
-            } else if (msg.type === "welcome" || msg.type === "heartbeat") {
-              this.cb.onParticipantDiscovered?.(msg.sender, false);
-            } else if (msg.type === "leave") {
-              this.cb.onParticipantLeave?.(msg.peerId);
-            } else if (msg.type === "signal") {
-              this.cb.onSignal?.(msg.payload);
-            } else if (msg.type === "chat") {
-              this.cb.onChat?.(msg.payload);
-            } else if (msg.type === "whiteboard") {
-              this.cb.onWhiteboard?.(msg.payload);
-            }
-          } catch (_) {}
-        });
+      makeMsgId() {
+        return `${this.selfData.peerId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       }
 
       broadcastRoom(obj) {
-        if (this.mqttClient?.connected) {
-          this.mqttClient.publish(
-            `securemeet_v2/${this.roomId}/broadcast`,
-            JSON.stringify(obj),
-            { qos: 1 }
-          );
-        }
+        const packet = JSON.stringify({ ...obj, msgId: this.makeMsgId() });
+        this.clients.forEach(c => {
+          if (c.connected) {
+            c.publish(`securemeet_v4/${this.roomId}/broadcast`, packet, { qos: 1 });
+          }
+        });
       }
 
       sendDirect(targetPeerId, obj) {
-        if (this.mqttClient?.connected) {
-          this.mqttClient.publish(
-            `securemeet_v2/${this.roomId}/direct/${targetPeerId}`,
-            JSON.stringify(obj),
-            { qos: 1 }
-          );
-        }
+        const packet = JSON.stringify({ ...obj, msgId: this.makeMsgId() });
+        this.clients.forEach(c => {
+          if (c.connected) {
+            c.publish(`securemeet_v4/${this.roomId}/direct/${targetPeerId}`, packet, { qos: 1 });
+          }
+        });
       }
 
-      /** Jalur Firebase Realtime Database (Jika Dikonfigurasi) */
       connectFirebase() {
         const participantsRef = ref(firebaseDb, `rooms/${this.roomId}/participants`);
         const myParticipantRef = ref(firebaseDb, `rooms/${this.roomId}/participants/${this.selfData.peerId}`);
@@ -707,7 +794,7 @@
           ...this.selfData,
           joinedAt: serverTimestamp()
         }).then(() => {
-          this.cb.onConnected?.("E2EE Aktif • AES-256-GCM (Firebase)");
+          this.cb.onConnected?.("E2EE Aktif • Firebase (v4.0)");
         });
 
         onDisconnect(myParticipantRef).remove();
@@ -789,16 +876,16 @@
         clearInterval(this.heartbeatTimer);
         if (useFirebase && firebaseDb) {
           await remove(ref(firebaseDb, `rooms/${this.roomId}/participants/${this.selfData.peerId}`));
-        } else if (this.mqttClient?.connected) {
+        } else {
           this.broadcastRoom({ type: "leave", peerId: this.selfData.peerId });
-          this.mqttClient.end();
+          this.clients.forEach(c => { try { c.end(); } catch (_) {} });
         }
       }
     }
 
     /**
      * =========================================================================
-     * MODUL 3: FAST-LOCK LOCATION SERVICE (CEPAT DI DALAM & LUAR RUANGAN)
+     * MODUL 3: FAST-LOCK LOCATION SERVICE
      * =========================================================================
      */
     class LocationService {
@@ -806,14 +893,13 @@
         this.coords = null;
       }
 
-      requestPermission() {
+      requestPermission(onRefinedUpdate = null) {
         return new Promise((resolve, reject) => {
           if (!("geolocation" in navigator)) {
             reject(new Error("Browser Anda tidak mendukung Geolokasi GPS."));
             return;
           }
 
-          // Tahap 1: Kunci lokasi cepat (Wi-Fi / Seluler / GPS Cache) agar tidak timeout di dalam ruangan
           navigator.geolocation.getCurrentPosition(
             (pos) => {
               this.coords = {
@@ -824,7 +910,7 @@
               };
               resolve(this.coords);
 
-              // Tahap 2: Perhalus akurasi GPS di latar belakang tanpa menahan pengguna
+              // Perhalus akurasi GPS satelit di latar belakang
               navigator.geolocation.getCurrentPosition(
                 (precisePos) => {
                   this.coords = {
@@ -833,6 +919,7 @@
                     accuracy: Math.round(precisePos.coords.accuracy),
                     updatedAt: new Date().toLocaleTimeString("id-ID")
                   };
+                  onRefinedUpdate?.(this.coords);
                 },
                 () => {},
                 { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -1077,7 +1164,7 @@
 
     /**
      * =========================================================================
-     * MODUL 6: MAIN CONFERENCE CONTROLLER (WEBRTC MESH + UI STATE)
+     * MODUL 6: MAIN CONFERENCE CONTROLLER
      * =========================================================================
      */
     class SecureMeetApp {
@@ -1088,7 +1175,7 @@
 
         this.signaling = new SignalingService({
           onConnected: (statusText) => {
-            document.getElementById("connStatusDot").className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
+            document.getElementById("connStatusDot").className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0";
             document.getElementById("e2eeStatusLabel").textContent = statusText;
           },
           onParticipantDiscovered: (p, isDirectHello) => this.handleParticipantDiscovered(p, isDirectHello),
@@ -1123,6 +1210,7 @@
         this.lastSeenMap = new Map();
         this.spotlightPeerId = null;
         this.unreadChatCount = 0;
+        this.selectedMapPeerId = null;
 
         this.init();
       }
@@ -1135,15 +1223,24 @@
         this.bindConferenceEvents();
         await this.startLocalPreview();
 
-        // Pembersih otomatis jika ada peserta yang terputus tanpa sinyal keluar
+        // Pemantau kesehatan koneksi & retry otomatis jika WebRTC belum tersambung
         setInterval(() => {
           const now = Date.now();
           this.lastSeenMap.forEach((ts, pid) => {
-            if (pid !== this.peerId && (now - ts) > 16000) {
+            if (pid === this.peerId) return;
+            if ((now - ts) > 18000) {
               this.handleParticipantLeave(pid);
+              return;
+            }
+            const pc = this.peers.get(pid);
+            if (!pc || pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+              if (pc) this.closePeerConnection(pid);
+              if (this.peerId > pid) {
+                this.createPeerConnection(pid, true);
+              }
             }
           });
-        }, 5000);
+        }, 4500);
       }
 
       detectInAppBrowser() {
@@ -1190,7 +1287,6 @@
             document.getElementById("lobbyAudioCanvas")
           );
         } catch (_) {
-          // Fallback: Tetap izinkan masuk ruang rapat meski PC tidak punya webcam/mic
           document.getElementById("lobbyCameraOffPlaceholder").classList.remove("hidden");
           document.getElementById("lobbyCameraStatusText").textContent =
             "Kamera/Mikrofon tidak ditemukan — Anda tetap dapat bergabung sebagai penonton.";
@@ -1222,6 +1318,8 @@
 
           this.isHost = true;
           this.roomId = "MTG-" + Math.random().toString(36).substring(2, 7).toUpperCase();
+          sessionStorage.setItem(`host_${this.roomId}`, "1");
+
           this.hashSecret = this.crypto.generateSecret();
           await this.crypto.initKey(this.roomId, this.hashSecret);
 
@@ -1239,15 +1337,15 @@
           }
           if (!(await this.validateEntryRequirements())) return;
 
-          this.isHost = false;
           this.roomId = code;
+          this.isHost = sessionStorage.getItem(`host_${this.roomId}`) === "1";
           await this.crypto.initKey(this.roomId, this.hashSecret);
           this.enterConference();
         });
 
         document.getElementById("btnJoinInvitedRoom").addEventListener("click", async () => {
           if (!(await this.validateEntryRequirements())) return;
-          this.isHost = false;
+          this.isHost = sessionStorage.getItem(`host_${this.roomId}`) === "1";
           await this.crypto.initKey(this.roomId, this.hashSecret);
           this.enterConference();
         });
@@ -1263,10 +1361,21 @@
         lucide.createIcons();
 
         try {
-          const coords = await this.locationSvc.requestPermission();
+          const coords = await this.locationSvc.requestPermission((refinedCoords) => {
+            // Jika koordinat GPS diperhalus saat sudah masuk ruang, perbarui ke seluruh anggota
+            if (this.roomId && this.participants.has(this.peerId)) {
+              const me = this.participants.get(this.peerId);
+              me.location = refinedCoords;
+              this.participants.set(this.peerId, me);
+              this.signaling.updateSelfData(me);
+              this.updateHostLocationPanel();
+            }
+          });
+
           badge.textContent = "Terverifikasi";
           badge.className = "text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-medium";
           desc.textContent = `Koordinat aktif: ${coords.lat}, ${coords.lng} (±${coords.accuracy}m)`;
+          btn.disabled = false;
           btn.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i><span>Lokasi Diizinkan</span>`;
           btn.classList.replace("text-indigo-300", "text-emerald-300");
           lucide.createIcons();
@@ -1308,11 +1417,12 @@
         const roleBadge = document.getElementById("roleBadge");
         roleBadge.textContent = this.isHost ? "HOST" : "PESERTA";
         if (!this.isHost) {
-          roleBadge.className = "text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700";
+          roleBadge.className = "text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 shrink-0";
         }
 
         if (this.isHost) {
           document.getElementById("btnHostLocations").classList.remove("hidden");
+          document.getElementById("btnHeaderLocations").classList.remove("hidden");
           document.getElementById("tabLocationBtn").classList.remove("hidden");
         }
 
@@ -1324,10 +1434,10 @@
           supportsE2EEFrames: this.crypto.supportsEncodedStreams
         };
         this.participants.set(this.peerId, selfData);
+        this.selectedMapPeerId = this.peerId;
         this.createVideoCard(selfData, this.localStream, true);
         this.updateHostLocationPanel();
 
-        // Mulai Signaling Aktif
         this.signaling.connect(this.roomId, selfData);
 
         this.playNotificationTone("join");
@@ -1343,7 +1453,6 @@
         this.updateParticipantCount();
         this.updateHostLocationPanel();
 
-        // Perbarui label nama pada kartu video jika kartu sudah terbuat lebih dulu
         const nameLabel = document.getElementById(`name-${p.peerId}`);
         if (nameLabel) nameLabel.textContent = p.name;
 
@@ -1351,9 +1460,12 @@
           this.playNotificationTone("join");
           this.showToast(`${p.name} bergabung ke ruang rapat`, "info");
           this.appendSystemChat(`${p.name} bergabung ke ruang rapat.`);
+          if (this.isHost && p.location) {
+            this.selectedMapPeerId = p.peerId;
+            this.updateHostLocationPanel();
+          }
         }
 
-        // Aturan deterministik pembuatan Offer WebRTC (peerId lebih besar yang memulai)
         if (!this.peers.has(p.peerId) && this.peerId > p.peerId) {
           this.createPeerConnection(p.peerId, true);
         }
@@ -1379,7 +1491,6 @@
         if (this.peers.has(remotePeerId)) return this.peers.get(remotePeerId);
 
         const remoteMeta = this.participants.get(remotePeerId);
-        // Aktifkan double-encryption frame-level hanya jika kedua browser mendukungnya
         const enableFrameTransforms = this.crypto.supportsEncodedStreams &&
           Boolean(remoteMeta?.supportsE2EEFrames);
 
@@ -1493,6 +1604,7 @@
         this.iceQueues.delete(remotePeerId);
       }
 
+      /** Membuat kartu video peserta dengan tampilan penuh tanpa crop (object-contain) */
       createVideoCard(meta, stream, isLocal) {
         const stage = document.getElementById("videoStage");
         let card = document.getElementById(`card-${meta.peerId}`);
@@ -1500,27 +1612,27 @@
         if (!card) {
           card = document.createElement("div");
           card.id = `card-${meta.peerId}`;
-          card.className = "video-card relative bg-slate-900 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-lg transition-all duration-200 cursor-pointer group min-h-[180px]";
+          card.className = "video-card relative bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-lg transition-all duration-200 cursor-pointer group flex items-center justify-center";
           card.title = "Klik untuk memperbesar / memfokuskan pembicara ini";
 
           card.innerHTML = `
             <video id="vid-${meta.peerId}" autoplay playsinline ${isLocal ? "muted" : ""}
-              class="w-full h-full object-cover ${isLocal ? "video-mirror" : ""}"></video>
+              class="video-uncropped ${isLocal ? "video-mirror" : ""}"></video>
 
-            <div class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-              <span class="px-2 py-0.5 rounded-md bg-slate-950/75 backdrop-blur-md text-[11px] font-medium text-slate-200 border border-slate-800/80 flex items-center gap-1.5">
+            <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
+              <span class="px-2 py-0.5 rounded-md bg-slate-900/85 backdrop-blur-md text-[11px] font-medium text-slate-200 border border-slate-800/90 flex items-center gap-1.5">
                 ${meta.isHost ? '<span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>Host' : "Peserta"}
               </span>
-              <span class="px-2 py-1 rounded-lg bg-slate-950/75 text-slate-300 opacity-0 group-hover:opacity-100 transition text-[11px] flex items-center gap-1">
+              <span class="px-2 py-0.5 rounded-lg bg-slate-900/85 text-slate-300 opacity-0 group-hover:opacity-100 transition text-[11px] flex items-center gap-1">
                 <i data-lucide="maximize-2" class="w-3 h-3"></i> Fokus
               </span>
             </div>
 
-            <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800/80">
+            <div class="absolute bottom-2 left-2 right-2 flex items-center justify-between bg-slate-900/85 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-800/90">
               <span id="name-${meta.peerId}" class="text-xs font-semibold text-white truncate max-w-[60%]">
                 ${this.escapeHTML(meta.name)} ${isLocal ? "(Anda)" : ""}
               </span>
-              <canvas id="spec-${meta.peerId}" width="84" height="20" class="rounded bg-slate-900/90"></canvas>
+              <canvas id="spec-${meta.peerId}" width="80" height="18" class="rounded bg-slate-950/90"></canvas>
             </div>
           `;
 
@@ -1575,7 +1687,7 @@
         if (!this.spotlightPeerId || allCards.length <= 1) {
           this.spotlightPeerId = null;
           btnResetGrid.classList.add("hidden");
-          stage.className = "flex-1 overflow-y-auto grid-stage";
+          stage.className = "flex-1 overflow-y-auto grid-stage min-h-0";
 
           const strip = document.getElementById("spotlightStrip");
           if (strip) {
@@ -1587,7 +1699,7 @@
         }
 
         btnResetGrid.classList.remove("hidden");
-        stage.className = "flex-1 overflow-hidden spotlight-layout";
+        stage.className = "flex-1 overflow-hidden spotlight-layout min-h-0";
 
         let strip = document.getElementById("spotlightStrip");
         if (!strip) {
@@ -1667,16 +1779,55 @@
         this.showToast("Berbagi layar dihentikan", "info");
       }
 
+      /** Render Daftar Koordinat GPS & Peta Langsung untuk Host */
       updateHostLocationPanel() {
         if (!this.isHost) return;
         const container = document.getElementById("hostLocationList");
+        const mapBox = document.getElementById("hostMapPreviewBox");
+        const mapTitle = document.getElementById("hostMapPreviewTitle");
+        const mapLink = document.getElementById("hostMapExternalLink");
+        const mapIframe = document.getElementById("hostMapIframe");
+
         container.innerHTML = "";
+
+        if (this.participants.size === 0) {
+          container.innerHTML = `<div class="text-xs text-slate-400 text-center py-4">Belum ada data peserta.</div>`;
+          return;
+        }
+
+        let activeMapParticipant = this.participants.get(this.selectedMapPeerId);
+        if (!activeMapParticipant || !activeMapParticipant.location) {
+          for (const p of this.participants.values()) {
+            if (p.location) {
+              activeMapParticipant = p;
+              this.selectedMapPeerId = p.peerId;
+              break;
+            }
+          }
+        }
+
+        if (activeMapParticipant && activeMapParticipant.location) {
+          const { lat, lng } = activeMapParticipant.location;
+          const delta = 0.008;
+          const bbox = `${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}`;
+          mapBox.classList.remove("hidden");
+          mapTitle.textContent = `Peta: ${activeMapParticipant.name}`;
+          mapLink.href = `https://www.google.com/maps?q=${lat},${lng}`;
+          const newSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
+          if (mapIframe.src !== newSrc) {
+            mapIframe.src = newSrc;
+          }
+        } else {
+          mapBox.classList.add("hidden");
+        }
 
         this.participants.forEach((p) => {
           const loc = p.location;
           const mapsUrl = loc ? `https://www.google.com/maps?q=${loc.lat},${loc.lng}` : "#";
+          const isSelected = p.peerId === this.selectedMapPeerId;
+
           const item = document.createElement("div");
-          item.className = "p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5";
+          item.className = `p-3 rounded-xl bg-slate-950 border ${isSelected ? "border-emerald-500/60" : "border-slate-800"} space-y-1.5 cursor-pointer hover:border-slate-700 transition`;
           item.innerHTML = `
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold text-white">${this.escapeHTML(p.name)} ${p.peerId === this.peerId ? "(Host)" : ""}</span>
@@ -1689,13 +1840,21 @@
               <div class="flex items-center justify-between pt-1">
                 <span class="text-[10px] text-slate-500">Akurasi ±${loc.accuracy}m • ${loc.updatedAt}</span>
                 <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
-                  class="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1">
-                  <span>Buka Peta</span>
+                  class="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1" onclick="event.stopPropagation()">
+                  <span>Google Maps</span>
                   <i data-lucide="external-link" class="w-3 h-3"></i>
                 </a>
               </div>
-            ` : `<div class="text-xs text-slate-500">Koordinat tidak tersedia</div>`}
+            ` : `<div class="text-xs text-slate-500">Menunggu sinyal koordinat...</div>`}
           `;
+
+          item.addEventListener("click", () => {
+            if (loc) {
+              this.selectedMapPeerId = p.peerId;
+              this.updateHostLocationPanel();
+            }
+          });
+
           container.appendChild(item);
         });
         lucide.createIcons();
@@ -1775,6 +1934,7 @@
           }
         });
 
+        // Kontrol Panel Chat & Lokasi Host (Split-View di HP, Sidebar di Desktop)
         const drawer = document.getElementById("sideDrawer");
         const chatTabBtn = document.getElementById("tabChatBtn");
         const locTabBtn = document.getElementById("tabLocationBtn");
@@ -1783,35 +1943,51 @@
 
         const openDrawerTab = (tab) => {
           drawer.classList.remove("hidden");
+          document.getElementById("floatingChatPreview").classList.add("hidden");
+
           if (tab === "chat") {
             chatContent.classList.remove("hidden");
             locContent.classList.add("hidden");
-            chatTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition";
-            locTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1";
+            chatTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition flex items-center gap-1.5";
+            locTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5";
             this.unreadChatCount = 0;
             document.getElementById("unreadChatBadge").classList.add("hidden");
+            document.getElementById("headerUnreadBadge").classList.add("hidden");
           } else {
             locContent.classList.remove("hidden");
             chatContent.classList.add("hidden");
-            locTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white transition flex items-center gap-1";
-            chatTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
+            locTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white transition flex items-center gap-1.5";
+            chatTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5";
+            this.updateHostLocationPanel();
           }
         };
 
-        document.getElementById("btnToggleChat").addEventListener("click", () => {
+        const toggleChatPanel = () => {
           if (!drawer.classList.contains("hidden") && !chatContent.classList.contains("hidden")) {
             drawer.classList.add("hidden");
           } else {
             openDrawerTab("chat");
           }
-        });
+        };
 
-        document.getElementById("btnHostLocations").addEventListener("click", () => {
+        const toggleLocationPanel = () => {
           if (!drawer.classList.contains("hidden") && !locContent.classList.contains("hidden")) {
             drawer.classList.add("hidden");
           } else {
             openDrawerTab("location");
           }
+        };
+
+        document.getElementById("btnToggleChat").addEventListener("click", toggleChatPanel);
+        document.getElementById("btnHeaderChat").addEventListener("click", toggleChatPanel);
+        document.getElementById("floatingChatPreview").addEventListener("click", () => openDrawerTab("chat"));
+
+        document.getElementById("btnHostLocations").addEventListener("click", toggleLocationPanel);
+        document.getElementById("btnHeaderLocations").addEventListener("click", toggleLocationPanel);
+        document.getElementById("btnRefreshLocations").addEventListener("click", () => {
+          this.signaling.announcePresence();
+          this.updateHostLocationPanel();
+          this.showToast("Memperbarui titik lokasi peserta...", "info");
         });
 
         chatTabBtn.addEventListener("click", () => openDrawerTab("chat"));
@@ -1832,7 +2008,6 @@
             time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
           };
 
-          // Tampilkan langsung di layar pengirim & kirim terenkripsi ke peserta lain
           this.appendChatMessage(msgObj, true);
           const encrypted = await this.crypto.encryptJSON(msgObj);
           this.signaling.sendChat(encrypted);
@@ -1872,8 +2047,17 @@
         if (!isSelf && chatHidden) {
           this.unreadChatCount++;
           const badge = document.getElementById("unreadChatBadge");
+          const headerBadge = document.getElementById("headerUnreadBadge");
           badge.textContent = this.unreadChatCount;
+          headerBadge.textContent = this.unreadChatCount;
           badge.classList.remove("hidden");
+          headerBadge.classList.remove("hidden");
+
+          // Tampilkan pratinjau pesan singkat di atas area video
+          const preview = document.getElementById("floatingChatPreview");
+          document.getElementById("floatingChatSender").textContent = msg.senderName;
+          document.getElementById("floatingChatText").textContent = msg.text;
+          preview.classList.remove("hidden");
         }
       }
 
