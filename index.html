@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <title>SecureMeet E2EE v4.0 — Video Conference & Kolaborasi Tim</title>
+  <title>SecureMeet E2EE v5.0 — Video Conference & Kolaborasi Tim</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -12,9 +12,11 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- MQTT.js untuk Real-Time Multi-Broker Signaling -->
   <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+  <!-- Leaflet.js untuk Peta Titik Lokasi Peserta -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
-    /* Menggunakan Dynamic Viewport Height (100dvh) agar pas di layar HP tanpa terpotong address bar */
     html, body {
       height: 100vh;
       height: 100dvh;
@@ -28,7 +30,7 @@
 
     .video-mirror { transform: scaleX(-1); }
 
-    /* Kamera tanpa crop: menyesuaikan aspek rasio laptop (landscape) maupun HP (portrait) */
+    /* Kamera utuh tanpa crop: menyesuaikan rasio asli laptop (landscape) maupun HP (portrait) */
     .video-uncropped {
       width: 100%;
       height: 100%;
@@ -41,17 +43,17 @@
       display: grid;
       gap: 0.65rem;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      grid-auto-rows: minmax(180px, 1fr);
+      grid-auto-rows: minmax(170px, 1fr);
     }
 
     @media (max-width: 640px) {
       .grid-stage {
         grid-template-columns: 1fr;
-        grid-auto-rows: minmax(170px, 1fr);
+        grid-auto-rows: minmax(160px, 1fr);
       }
     }
 
-    /* Tata Letak Spotlight (1 Pembicara Utama Besar + Peserta Lain Mengecil) */
+    /* Tata Letak Spotlight */
     .spotlight-layout {
       display: flex;
       flex-direction: column;
@@ -102,6 +104,33 @@
       }
     }
 
+    /* Marker Titik Peserta di Atas Peta Leaflet */
+    .map-dot-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform: translate(-50%, -50%);
+    }
+    .map-dot-pulse {
+      width: 16px;
+      height: 16px;
+      border-radius: 9999px;
+      border: 2.5px solid #ffffff;
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.35), 0 2px 6px rgba(0, 0, 0, 0.6);
+    }
+    .map-dot-label {
+      margin-top: 3px;
+      padding: 1px 6px;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.92);
+      color: #f8fafc;
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
     @keyframes slideInRight {
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
@@ -138,11 +167,11 @@
               </span>
               <span id="signalingModeBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-medium">
                 <i data-lucide="zap" class="w-3.5 h-3.5"></i>
-                <span>Multi-Path P2P v4.0</span>
+                <span>SecureMeet Live v5.0</span>
               </span>
             </div>
             <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white">SecureMeet Conference</h1>
-            <p class="text-slate-400 text-xs md:text-sm mt-1">Video conference HD terenkripsi dengan tampilan kamera penuh, papan tulis tim, dan verifikasi lokasi.</p>
+            <p class="text-slate-400 text-xs md:text-sm mt-1">Video conference HD terenkripsi dengan tampilan kamera penuh, papan tulis tim otomatis, dan peta kehadiran Host.</p>
           </div>
 
           <!-- Preview Video Lokal (Uncropped) -->
@@ -171,7 +200,7 @@
           </div>
         </div>
 
-        <!-- Kolom Kanan: Form Gabung / Buat Ruang & Wajib Izin Lokasi -->
+        <!-- Kolom Kanan: Form Gabung / Buat Ruang & Verifikasi Kehadiran -->
         <div class="lg:col-span-5 flex flex-col justify-center space-y-4 bg-slate-950/60 p-4 md:p-5 rounded-xl border border-slate-800/80">
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-1.5">Nama Tampilan Anda</label>
@@ -179,19 +208,19 @@
               class="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition" />
           </div>
 
-          <!-- Kotak Status Wajib Lokasi -->
+          <!-- Kotak Status Izin Lokasi (Tanpa Menampilkan Koordinat ke Peserta) -->
           <div id="locationStatusBox" class="p-3.5 rounded-xl border border-slate-800 bg-slate-900/90 space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
                 <i data-lucide="map-pin" class="w-4 h-4 text-indigo-400"></i>
-                Verifikasi Lokasi (Wajib)
+                Verifikasi Kehadiran (Wajib)
               </span>
               <span id="locationBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium">
                 Menunggu Izin
               </span>
             </div>
             <p id="locationDesc" class="text-xs text-slate-400 leading-relaxed">
-              Setiap peserta wajib mengizinkan akses lokasi agar Host dapat mengetahui keberadaan anggota rapat.
+              Izinkan akses lokasi perangkat Anda sebagai syarat kehadiran rapat bagi Host.
             </p>
             <button id="btnRequestLocation" type="button"
               class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-indigo-300 border border-slate-700 transition flex items-center justify-center gap-1.5">
@@ -264,24 +293,23 @@
         </div>
       </div>
 
-      <!-- Kontrol Cepat Header: Grid, Chat, Lokasi Host, Salin Link & Jumlah Peserta -->
+      <!-- Kontrol Cepat Header -->
       <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <button id="btnResetGrid" type="button" class="hidden px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 flex items-center gap-1 transition" title="Kembali ke Tampilan Grid">
           <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-indigo-400"></i>
           <span class="hidden md:inline">Grid</span>
         </button>
 
-        <!-- Tombol Chat Selalu Terlihat di Header (Termasuk Mobile) -->
         <button id="btnHeaderChat" type="button" class="relative px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition" title="Buka Obrolan Langsung">
           <i data-lucide="message-square" class="w-3.5 h-3.5 text-indigo-400"></i>
           <span class="hidden sm:inline">Chat</span>
           <span id="headerUnreadBadge" class="hidden px-1.5 py-0.2 rounded-full bg-rose-500 text-[10px] font-bold text-white">0</span>
         </button>
 
-        <!-- Tombol Lokasi Khusus Host di Header -->
-        <button id="btnHeaderLocations" type="button" class="hidden px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-medium flex items-center gap-1.5 transition" title="Pantau Lokasi Peserta">
+        <!-- Tombol Peta Lokasi (KHUSUS HOST) -->
+        <button id="btnHeaderLocations" type="button" class="hidden px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-medium flex items-center gap-1.5 transition" title="Peta Titik Lokasi Peserta">
           <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
-          <span class="hidden sm:inline">Lokasi</span>
+          <span class="hidden sm:inline">Peta Lokasi</span>
         </button>
 
         <button id="btnCopyInvite" type="button" class="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5 transition" title="Salin Tautan Undangan">
@@ -296,19 +324,19 @@
       </div>
     </header>
 
-    <!-- Area Tengah: Split-View Responsif (Video Stage + Side/Bottom Panel) -->
+    <!-- Area Tengah: Split-View Responsif (Video Stage + Papan Tulis + Side/Bottom Panel) -->
     <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
       
       <!-- Container Video & Whiteboard -->
       <div class="flex-1 flex flex-col p-2.5 sm:p-3 overflow-hidden relative min-h-0">
         
-        <!-- Panel Papan Tulis Interaktif -->
-        <div id="whiteboardContainer" class="hidden mb-2.5 flex-1 min-h-[45%] bg-white rounded-2xl shadow-xl border border-slate-700 flex flex-col overflow-hidden relative z-10">
+        <!-- Panel Papan Tulis Interaktif (Otomatis Terbuka Saat Host/Peserta Menggambar) -->
+        <div id="whiteboardContainer" class="hidden mb-2.5 flex-1 min-h-[48%] bg-white rounded-2xl shadow-xl border border-slate-700 flex flex-col overflow-hidden relative z-10">
           <div class="bg-slate-900 px-3 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800">
             <div class="flex items-center gap-1.5">
-              <span class="text-xs font-semibold text-white mr-2 flex items-center gap-1.5">
+              <span class="text-xs font-semibold text-white mr-1.5 flex items-center gap-1.5">
                 <i data-lucide="pen-tool" class="w-3.5 h-3.5 text-indigo-400"></i>
-                Papan Tulis Tim
+                Papan Tulis Bersama
               </span>
               <button data-wb-tool="pen" class="wb-tool-btn p-1.5 rounded bg-indigo-600 text-white" title="Pena">
                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
@@ -333,7 +361,7 @@
               <button id="btnDownloadWhiteboard" type="button" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
                 Simpan PNG
               </button>
-              <button id="btnCloseWhiteboard" type="button" class="p-1 rounded hover:bg-slate-800 text-slate-400">
+              <button id="btnCloseWhiteboard" type="button" class="p-1 rounded hover:bg-slate-800 text-slate-400" title="Tutup Papan Tulis">
                 <i data-lucide="x" class="w-4 h-4"></i>
               </button>
             </div>
@@ -346,7 +374,7 @@
         <!-- Stage Video (Grid & Spotlight Mode) -->
         <div id="videoStage" class="flex-1 overflow-y-auto grid-stage min-h-0"></div>
 
-        <!-- Floating Pratinjau Pesan Masuk (Tampil saat panel chat tertutup) -->
+        <!-- Floating Pratinjau Pesan Masuk -->
         <button id="floatingChatPreview" type="button" class="hidden absolute bottom-3 left-3 right-3 sm:left-auto sm:right-4 sm:max-w-sm bg-slate-900/95 hover:bg-slate-800 backdrop-blur-md border border-indigo-500/40 rounded-xl px-3.5 py-2 shadow-xl flex items-center gap-2.5 text-left transition z-20">
           <i data-lucide="message-circle" class="w-4 h-4 text-indigo-400 shrink-0"></i>
           <div class="min-w-0 flex-1">
@@ -357,17 +385,18 @@
         </button>
       </div>
 
-      <!-- Panel Fungsional: Split-View Bawah di HP (46% tinggi) & Sidebar Kanan di Laptop/PC -->
-      <aside id="sideDrawer" class="hidden h-[46%] lg:h-auto w-full lg:w-96 bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col shrink-0 z-30">
+      <!-- Panel Fungsional: Split-View Bawah di HP (52% tinggi) & Sidebar Kanan di Laptop/PC -->
+      <aside id="sideDrawer" class="hidden h-[52%] lg:h-auto w-full lg:w-[400px] bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col shrink-0 z-30">
         <div class="h-11 px-3 border-b border-slate-800 flex items-center justify-between shrink-0 bg-slate-950/50">
           <div class="flex items-center gap-1.5">
             <button id="tabChatBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition flex items-center gap-1.5">
               <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
               <span>Obrolan Langsung</span>
             </button>
+            <!-- Tab Lokasi (KHUSUS HOST) -->
             <button id="tabLocationBtn" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
               <i data-lucide="map-pin" class="w-3.5 h-3.5 text-emerald-400"></i>
-              <span>Lokasi Peserta</span>
+              <span>Peta Titik Peserta</span>
             </button>
           </div>
           <button id="btnCloseDrawer" type="button" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400" title="Tutup Panel">
@@ -392,33 +421,36 @@
           </form>
         </div>
 
-        <!-- Konten Tab 2: Panel Pemantauan Lokasi Peserta (Khusus Host) -->
-        <div id="locationTabContent" class="hidden flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-          <div class="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300">
-            <span>Titik koordinat GPS aktif seluruh peserta:</span>
-            <button id="btnRefreshLocations" type="button" class="px-2 py-1 rounded bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 font-semibold transition">
-              Perbarui
-            </button>
-          </div>
-
-          <!-- Peta Interaktif Tersemat untuk Peserta Terpilih -->
-          <div id="hostMapPreviewBox" class="hidden rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
-            <div class="px-3 py-1.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-[11px]">
-              <span id="hostMapPreviewTitle" class="font-semibold text-slate-200">Pratinjau Peta</span>
-              <a id="hostMapExternalLink" href="#" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:underline flex items-center gap-1">
-                <span>Google Maps</span>
-                <i data-lucide="external-link" class="w-3 h-3"></i>
-              </a>
+        <!-- Konten Tab 2: Peta Titik Lokasi Seluruh Peserta (KHUSUS HOST) -->
+        <div id="locationTabContent" class="hidden flex-1 flex flex-col overflow-hidden min-h-0">
+          <!-- Bar Kontrol Peta -->
+          <div class="px-3 py-2 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-2 shrink-0">
+            <span class="text-[11px] text-emerald-300 font-medium flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span>Titik Lokasi Real-Time</span>
+            </span>
+            <div class="flex items-center gap-1.5">
+              <button id="btnFitAllMarkers" type="button" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 font-medium border border-slate-700 transition">
+                Semua Titik
+              </button>
+              <button id="btnRefreshLocations" type="button" class="px-2.5 py-1 rounded bg-emerald-600/25 hover:bg-emerald-600/40 text-[11px] text-emerald-200 font-semibold border border-emerald-500/30 transition">
+                Segarkan
+              </button>
             </div>
-            <iframe id="hostMapIframe" class="w-full h-36 border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
           </div>
 
-          <div id="hostLocationList" class="space-y-2"></div>
+          <!-- Peta Interaktif Multi-Titik (Leaflet) -->
+          <div class="relative h-52 sm:h-60 w-full bg-slate-950 border-b border-slate-800 shrink-0 z-10">
+            <div id="hostLeafletMap" class="w-full h-full"></div>
+          </div>
+
+          <!-- Daftar Titik Peserta -->
+          <div id="hostLocationList" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
         </div>
       </aside>
     </main>
 
-    <!-- Bottom Control Bar (Selalu Terlihat di Layar HP & Desktop) -->
+    <!-- Bottom Control Bar -->
     <footer class="h-15 py-2 px-3 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex items-center justify-center gap-2 sm:gap-3 shrink-0 z-20">
       <button id="btnToggleMic" type="button" class="p-2.5 sm:p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition" title="Mikrofon">
         <i data-lucide="mic" class="w-5 h-5"></i>
@@ -433,7 +465,7 @@
         <span class="hidden md:inline text-xs font-medium">Bagikan Layar</span>
       </button>
 
-      <button id="btnToggleWhiteboard" type="button" class="p-2.5 sm:p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition flex items-center gap-2" title="Papan Tulis Interaktif">
+      <button id="btnToggleWhiteboard" type="button" class="p-2.5 sm:p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition flex items-center gap-2" title="Papan Tulis Bersama">
         <i data-lucide="pen-tool" class="w-5 h-5"></i>
         <span class="hidden md:inline text-xs font-medium">Papan Tulis</span>
       </button>
@@ -444,9 +476,10 @@
         <span id="unreadChatBadge" class="hidden absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-[10px] font-bold flex items-center justify-center">0</span>
       </button>
 
-      <button id="btnHostLocations" type="button" class="hidden p-2.5 sm:p-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-2" title="Pantau Lokasi Peserta">
+      <!-- Tombol Peta Lokasi (KHUSUS HOST) -->
+      <button id="btnHostLocations" type="button" class="hidden p-2.5 sm:p-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-2" title="Peta Titik Lokasi Peserta">
         <i data-lucide="map-pin" class="w-5 h-5"></i>
-        <span class="hidden md:inline text-xs font-medium">Lokasi</span>
+        <span class="hidden md:inline text-xs font-medium">Peta Lokasi</span>
       </button>
 
       <div class="h-6 w-px bg-slate-800 mx-0.5"></div>
@@ -462,7 +495,7 @@
   <div id="toastContainer" class="fixed top-15 right-3 z-50 flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
 
   <!-- =====================================================================
-       3. LOGIKA APLIKASI (MULTI-BROKER + STUN/TURN + UNCROPPED VIDEO + E2EE)
+       3. LOGIKA APLIKASI (AUTO-WHITEBOARD + LEAFLET MULTI-DOT MAP + E2EE)
   ====================================================================== -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -510,7 +543,6 @@
       iceCandidatePoolSize: 10
     };
 
-    // Terhubung ke kedua broker sekaligus agar tidak pernah terisolasi antar-ISP
     const WSS_BROKERS = [
       "wss://broker.emqx.io:8084/mqtt",
       "wss://broker.hivemq.com:8884/mqtt"
@@ -523,7 +555,7 @@
       const app = initializeApp(FIREBASE_CONFIG);
       firebaseDb = getDatabase(app);
       const badge = document.getElementById("signalingModeBadge");
-      badge.innerHTML = `<i data-lucide="database" class="w-3.5 h-3.5"></i><span>Firebase + TURN v4.0</span>`;
+      badge.innerHTML = `<i data-lucide="database" class="w-3.5 h-3.5"></i><span>Firebase + Live v5.0</span>`;
     }
 
     /**
@@ -539,13 +571,12 @@
       }
 
       generateSecret() {
-        const bytes = crypto.getRandomValues(new Uint8Array(24));
-        return btoa(String.fromCharCode(...bytes))
-          .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+        const bytes = crypto.getRandomValues(new Uint8Array(16));
+        return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
       }
 
-      async initKey(roomId, hashSecret = "") {
-        const seed = `${roomId.toUpperCase()}::${hashSecret || "SECUREMEET_DEFAULT_KEY"}`;
+      async initKey(roomId, secret = "") {
+        const seed = `${roomId.toUpperCase()}::${secret || "SECUREMEET_DEFAULT_KEY"}`;
         const enc = new TextEncoder();
         const hashBuffer = await crypto.subtle.digest("SHA-256", enc.encode(seed));
         this.cryptoKey = await crypto.subtle.importKey(
@@ -655,13 +686,15 @@
         this.seenMsgIds = new Set();
         this.roomId = "";
         this.selfData = null;
+        this.roomSecret = "";
         this.heartbeatTimer = null;
         this.isClosed = false;
       }
 
-      connect(roomId, selfData) {
+      connect(roomId, selfData, roomSecret = "") {
         this.roomId = roomId;
         this.selfData = selfData;
+        this.roomSecret = roomSecret;
         this.isClosed = false;
 
         if (useFirebase && firebaseDb) {
@@ -673,7 +706,7 @@
 
       updateSelfData(newSelfData) {
         this.selfData = newSelfData;
-        this.announcePresence();
+        this.broadcastRoom({ type: "location_update", sender: this.selfData });
       }
 
       announcePresence() {
@@ -681,14 +714,14 @@
       }
 
       connectAllWSSBrokers() {
-        const prefix = `securemeet_v4/${this.roomId}`;
+        const prefix = `securemeet_v5/${this.roomId}`;
         const roomBroadcastTopic = `${prefix}/broadcast`;
         const myDirectTopic = `${prefix}/direct/${this.selfData.peerId}`;
         let connectedCount = 0;
 
         WSS_BROKERS.forEach((brokerUrl, idx) => {
           const client = window.mqtt.connect(brokerUrl, {
-            clientId: `sm4_${this.selfData.peerId}_${idx}_${Math.random().toString(16).slice(2, 6)}`,
+            clientId: `sm5_${this.selfData.peerId}_${idx}_${Math.random().toString(16).slice(2, 6)}`,
             clean: true,
             connectTimeout: 8000,
             reconnectPeriod: 2500,
@@ -720,11 +753,10 @@
               const msg = JSON.parse(payloadBuf.toString());
               if (!msg) return;
 
-              // Deduplikasi pesan agar tidak diproses dua kali dari 2 broker
               if (msg.msgId) {
                 if (this.seenMsgIds.has(msg.msgId)) return;
                 this.seenMsgIds.add(msg.msgId);
-                if (this.seenMsgIds.size > 1500) {
+                if (this.seenMsgIds.size > 2000) {
                   const firstKey = this.seenMsgIds.values().next().value;
                   this.seenMsgIds.delete(firstKey);
                 }
@@ -736,9 +768,15 @@
                 this.cb.onParticipantDiscovered?.(msg.sender, true);
                 this.sendDirect(msg.sender.peerId, {
                   type: "welcome",
-                  sender: this.selfData
+                  sender: this.selfData,
+                  roomSecret: this.selfData.isHost ? this.roomSecret : ""
                 });
-              } else if (msg.type === "welcome" || msg.type === "heartbeat") {
+              } else if (msg.type === "welcome") {
+                if (msg.roomSecret) {
+                  this.cb.onRoomSecretReceived?.(msg.roomSecret);
+                }
+                this.cb.onParticipantDiscovered?.(msg.sender, false);
+              } else if (msg.type === "heartbeat" || msg.type === "location_update") {
                 this.cb.onParticipantDiscovered?.(msg.sender, false);
               } else if (msg.type === "leave") {
                 this.cb.onParticipantLeave?.(msg.peerId);
@@ -758,7 +796,7 @@
         clearInterval(this.heartbeatTimer);
         this.heartbeatTimer = setInterval(() => {
           this.broadcastRoom({ type: "heartbeat", sender: this.selfData });
-        }, 3500);
+        }, 3000);
       }
 
       makeMsgId() {
@@ -769,7 +807,7 @@
         const packet = JSON.stringify({ ...obj, msgId: this.makeMsgId() });
         this.clients.forEach(c => {
           if (c.connected) {
-            c.publish(`securemeet_v4/${this.roomId}/broadcast`, packet, { qos: 1 });
+            c.publish(`securemeet_v5/${this.roomId}/broadcast`, packet, { qos: 1 });
           }
         });
       }
@@ -778,7 +816,7 @@
         const packet = JSON.stringify({ ...obj, msgId: this.makeMsgId() });
         this.clients.forEach(c => {
           if (c.connected) {
-            c.publish(`securemeet_v4/${this.roomId}/direct/${targetPeerId}`, packet, { qos: 1 });
+            c.publish(`securemeet_v5/${this.roomId}/direct/${targetPeerId}`, packet, { qos: 1 });
           }
         });
       }
@@ -794,7 +832,7 @@
           ...this.selfData,
           joinedAt: serverTimestamp()
         }).then(() => {
-          this.cb.onConnected?.("E2EE Aktif • Firebase (v4.0)");
+          this.cb.onConnected?.("E2EE Aktif • Firebase (v5.0)");
         });
 
         onDisconnect(myParticipantRef).remove();
@@ -849,24 +887,23 @@
         }
       }
 
-      sendWhiteboardStroke(encryptedString) {
+      sendWhiteboardAction(payloadObj) {
         if (useFirebase && firebaseDb) {
-          push(ref(firebaseDb, `rooms/${this.roomId}/whiteboard`), encryptedString);
+          if (payloadObj.action === "stroke") {
+            push(ref(firebaseDb, `rooms/${this.roomId}/whiteboard`), payloadObj.data);
+          } else if (payloadObj.action === "clear") {
+            remove(ref(firebaseDb, `rooms/${this.roomId}/whiteboard`));
+          }
         } else {
-          this.broadcastRoom({
-            type: "whiteboard",
-            payload: { action: "stroke", data: encryptedString }
-          });
+          this.broadcastRoom({ type: "whiteboard", payload: payloadObj });
         }
       }
 
-      clearWhiteboard() {
-        if (useFirebase && firebaseDb) {
-          remove(ref(firebaseDb, `rooms/${this.roomId}/whiteboard`));
-        } else {
-          this.broadcastRoom({
+      sendDirectWhiteboardSync(targetPeerId, encryptedHistoryString) {
+        if (!useFirebase) {
+          this.sendDirect(targetPeerId, {
             type: "whiteboard",
-            payload: { action: "clear" }
+            payload: { action: "sync_history", data: encryptedHistoryString }
           });
         }
       }
@@ -885,58 +922,58 @@
 
     /**
      * =========================================================================
-     * MODUL 3: FAST-LOCK LOCATION SERVICE
+     * MODUL 3: CONTINUOUS GPS LOCATION SERVICE
      * =========================================================================
      */
     class LocationService {
       constructor() {
         this.coords = null;
+        this.watchId = null;
       }
 
-      requestPermission(onRefinedUpdate = null) {
+      requestPermission(onContinuousUpdate = null) {
         return new Promise((resolve, reject) => {
           if (!("geolocation" in navigator)) {
             reject(new Error("Browser Anda tidak mendukung Geolokasi GPS."));
             return;
           }
 
+          const formatPos = (pos) => ({
+            lat: Number(pos.coords.latitude.toFixed(6)),
+            lng: Number(pos.coords.longitude.toFixed(6)),
+            accuracy: Math.round(pos.coords.accuracy),
+            updatedAt: new Date().toLocaleTimeString("id-ID")
+          });
+
           navigator.geolocation.getCurrentPosition(
             (pos) => {
-              this.coords = {
-                lat: Number(pos.coords.latitude.toFixed(6)),
-                lng: Number(pos.coords.longitude.toFixed(6)),
-                accuracy: Math.round(pos.coords.accuracy),
-                updatedAt: new Date().toLocaleTimeString("id-ID")
-              };
+              this.coords = formatPos(pos);
               resolve(this.coords);
 
-              // Perhalus akurasi GPS satelit di latar belakang
-              navigator.geolocation.getCurrentPosition(
-                (precisePos) => {
-                  this.coords = {
-                    lat: Number(precisePos.coords.latitude.toFixed(6)),
-                    lng: Number(precisePos.coords.longitude.toFixed(6)),
-                    accuracy: Math.round(precisePos.coords.accuracy),
-                    updatedAt: new Date().toLocaleTimeString("id-ID")
-                  };
-                  onRefinedUpdate?.(this.coords);
-                },
-                () => {},
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-              );
+              // Pantau perubahan titik lokasi secara berkala di latar belakang
+              if (this.watchId === null) {
+                this.watchId = navigator.geolocation.watchPosition(
+                  (livePos) => {
+                    this.coords = formatPos(livePos);
+                    onContinuousUpdate?.(this.coords);
+                  },
+                  () => {},
+                  { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+                );
+              }
             },
             (err) => {
               let msg = "Izin lokasi ditolak.";
               if (err.code === err.PERMISSION_DENIED) {
                 msg = "Akses lokasi ditolak. Klik ikon gembok di bilah alamat browser lalu izinkan Lokasi.";
               } else if (err.code === err.POSITION_UNAVAILABLE) {
-                msg = "Sinyal lokasi perangkat tidak aktif. Aktifkan GPS / Lokasi di HP atau laptop Anda.";
+                msg = "Sinyal lokasi tidak aktif. Aktifkan GPS / Lokasi di HP atau laptop Anda.";
               } else if (err.code === err.TIMEOUT) {
                 msg = "Waktu deteksi lokasi habis. Pastikan GPS aktif lalu tekan coba lagi.";
               }
               reject(new Error(msg));
             },
-            { enableHighAccuracy: false, timeout: 9000, maximumAge: 60000 }
+            { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
           );
         });
       }
@@ -1027,23 +1064,36 @@
 
     /**
      * =========================================================================
-     * MODUL 5: INTERACTIVE COLLABORATIVE WHITEBOARD
+     * MODUL 5: AUTO-SYNC COLLABORATIVE WHITEBOARD
      * =========================================================================
      */
     class WhiteboardManager {
-      constructor(canvas, cryptoService, signalingService) {
+      constructor(canvas, container, cryptoService, signalingService, onAutoOpened) {
         this.canvas = canvas;
+        this.container = container;
         this.ctx = canvas.getContext("2d");
         this.cryptoService = cryptoService;
         this.signaling = signalingService;
+        this.onAutoOpened = onAutoOpened;
+
         this.isDrawing = false;
         this.tool = "pen";
         this.color = "#1e293b";
         this.size = 4;
         this.lastPos = null;
         this.senderId = null;
+        this.strokes = []; // Menyimpan seluruh riwayat coretan (koordinat ternormalisasi 0..1)
 
         this.bindEvents();
+      }
+
+      ensureVisible(notifyLabel = null) {
+        const wasHidden = this.container.classList.contains("hidden");
+        if (wasHidden) {
+          this.container.classList.remove("hidden");
+          this.resizeCanvas();
+          if (notifyLabel) this.onAutoOpened?.(notifyLabel);
+        }
       }
 
       resizeCanvas() {
@@ -1052,14 +1102,16 @@
         const rect = parent.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return;
 
-        const temp = document.createElement("canvas");
-        temp.width = this.canvas.width;
-        temp.height = this.canvas.height;
-        temp.getContext("2d").drawImage(this.canvas, 0, 0);
-
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
-        this.ctx.drawImage(temp, 0, 0, this.canvas.width, this.canvas.height);
+        this.redrawAllStrokes();
+      }
+
+      redrawAllStrokes() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        for (const s of this.strokes) {
+          this.drawSegment(s);
+        }
       }
 
       getNormalizedPos(e) {
@@ -1075,6 +1127,9 @@
       bindEvents() {
         const start = (e) => {
           e.preventDefault();
+          if (this.canvas.width === 0 || this.canvas.height === 0) {
+            this.resizeCanvas();
+          }
           this.isDrawing = true;
           this.lastPos = this.getNormalizedPos(e);
         };
@@ -1093,11 +1148,12 @@
             size: Number(this.size),
             sender: this.senderId
           };
+          this.strokes.push(stroke);
           this.drawSegment(stroke);
           this.lastPos = currentPos;
 
           const encrypted = await this.cryptoService.encryptJSON(stroke);
-          this.signaling.sendWhiteboardStroke(encrypted);
+          this.signaling.sendWhiteboardAction({ action: "stroke", data: encrypted });
         };
 
         const end = () => { this.isDrawing = false; };
@@ -1114,6 +1170,8 @@
       drawSegment(s) {
         const w = this.canvas.width;
         const h = this.canvas.height;
+        if (w === 0 || h === 0) return;
+
         this.ctx.save();
         this.ctx.lineCap = "round";
         this.ctx.lineJoin = "round";
@@ -1139,23 +1197,47 @@
         this.ctx.restore();
       }
 
+      announceOpen(userName) {
+        this.signaling.sendWhiteboardAction({ action: "open", senderName: userName });
+      }
+
+      async syncHistoryToPeer(targetPeerId) {
+        if (this.strokes.length === 0) return;
+        const encryptedHistory = await this.cryptoService.encryptJSON(this.strokes);
+        this.signaling.sendDirectWhiteboardSync(targetPeerId, encryptedHistory);
+      }
+
       clearLocal() {
+        this.strokes = [];
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       }
 
       clearAll() {
         this.clearLocal();
-        this.signaling.clearWhiteboard();
+        this.signaling.sendWhiteboardAction({ action: "clear" });
       }
 
       async handleRemoteEvent(event) {
-        if (event.action === "clear") {
+        if (event.action === "open") {
+          this.ensureVisible(`${event.senderName || "Peserta"} membuka Papan Tulis`);
+        } else if (event.action === "clear") {
           this.clearLocal();
         } else if (event.action === "stroke") {
           try {
             const stroke = await this.cryptoService.decryptJSON(event.data);
             if (stroke.sender !== this.senderId) {
+              this.ensureVisible("Papan Tulis sedang digunakan");
+              this.strokes.push(stroke);
               this.drawSegment(stroke);
+            }
+          } catch (_) {}
+        } else if (event.action === "sync_history") {
+          try {
+            const historyList = await this.cryptoService.decryptJSON(event.data);
+            if (Array.isArray(historyList) && historyList.length > 0) {
+              this.strokes = historyList;
+              this.ensureVisible("Memuat Papan Tulis aktif");
+              this.redrawAllStrokes();
             }
           } catch (_) {}
         }
@@ -1178,6 +1260,12 @@
             document.getElementById("connStatusDot").className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0";
             document.getElementById("e2eeStatusLabel").textContent = statusText;
           },
+          onRoomSecretReceived: async (secret) => {
+            if (secret && !this.hashSecret) {
+              this.hashSecret = secret;
+              await this.crypto.initKey(this.roomId, this.hashSecret);
+            }
+          },
           onParticipantDiscovered: (p, isDirectHello) => this.handleParticipantDiscovered(p, isDirectHello),
           onParticipantLeave: (peerId) => this.handleParticipantLeave(peerId),
           onSignal: (sig) => this.handleIncomingSignal(sig),
@@ -1187,8 +1275,10 @@
 
         this.whiteboard = new WhiteboardManager(
           document.getElementById("whiteboardCanvas"),
+          document.getElementById("whiteboardContainer"),
           this.crypto,
-          this.signaling
+          this.signaling,
+          (msg) => this.showToast(msg, "info")
         );
 
         this.peerId = "peer_" + Math.random().toString(36).substring(2, 10);
@@ -1210,7 +1300,10 @@
         this.lastSeenMap = new Map();
         this.spotlightPeerId = null;
         this.unreadChatCount = 0;
-        this.selectedMapPeerId = null;
+
+        // State Peta Leaflet (Khusus Host)
+        this.hostMap = null;
+        this.hostMarkers = new Map();
 
         this.init();
       }
@@ -1223,7 +1316,6 @@
         this.bindConferenceEvents();
         await this.startLocalPreview();
 
-        // Pemantau kesehatan koneksi & retry otomatis jika WebRTC belum tersambung
         setInterval(() => {
           const now = Date.now();
           this.lastSeenMap.forEach((ts, pid) => {
@@ -1254,7 +1346,8 @@
       parseInviteURL() {
         const params = new URLSearchParams(window.location.search);
         const roomParam = params.get("room");
-        this.hashSecret = window.location.hash.replace("#", "").trim();
+        const keyParam = params.get("k") || window.location.hash.replace("#", "").trim();
+        this.hashSecret = keyParam;
 
         if (roomParam) {
           this.roomId = roomParam.toUpperCase();
@@ -1323,7 +1416,7 @@
           this.hashSecret = this.crypto.generateSecret();
           await this.crypto.initKey(this.roomId, this.hashSecret);
 
-          const newUrl = `${window.location.pathname}?room=${this.roomId}#${this.hashSecret}`;
+          const newUrl = `${window.location.pathname}?room=${this.roomId}&k=${this.hashSecret}`;
           window.history.replaceState({}, "", newUrl);
 
           this.enterConference();
@@ -1357,26 +1450,26 @@
         const desc = document.getElementById("locationDesc");
 
         btn.disabled = true;
-        btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Mendeteksi Lokasi...</span>`;
+        btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Memverifikasi...</span>`;
         lucide.createIcons();
 
         try {
-          const coords = await this.locationSvc.requestPermission((refinedCoords) => {
-            // Jika koordinat GPS diperhalus saat sudah masuk ruang, perbarui ke seluruh anggota
+          await this.locationSvc.requestPermission((liveCoords) => {
             if (this.roomId && this.participants.has(this.peerId)) {
               const me = this.participants.get(this.peerId);
-              me.location = refinedCoords;
+              me.location = liveCoords;
               this.participants.set(this.peerId, me);
               this.signaling.updateSelfData(me);
-              this.updateHostLocationPanel();
+              if (this.isHost) this.updateHostMapAndList();
             }
           });
 
           badge.textContent = "Terverifikasi";
           badge.className = "text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-medium";
-          desc.textContent = `Koordinat aktif: ${coords.lat}, ${coords.lng} (±${coords.accuracy}m)`;
+          // Peserta tidak ditampilkan angka koordinatnya; hanya konfirmasi siap bergabung
+          desc.textContent = "Kehadiran perangkat terverifikasi. Anda siap masuk ke ruang rapat.";
           btn.disabled = false;
-          btn.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i><span>Lokasi Diizinkan</span>`;
+          btn.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i><span>Izin Lokasi Aktif</span>`;
           btn.classList.replace("text-indigo-300", "text-emerald-300");
           lucide.createIcons();
           return true;
@@ -1420,6 +1513,7 @@
           roleBadge.className = "text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 shrink-0";
         }
 
+        // Fitur Peta Titik Lokasi hanya diaktifkan untuk Host
         if (this.isHost) {
           document.getElementById("btnHostLocations").classList.remove("hidden");
           document.getElementById("btnHeaderLocations").classList.remove("hidden");
@@ -1434,11 +1528,9 @@
           supportsE2EEFrames: this.crypto.supportsEncodedStreams
         };
         this.participants.set(this.peerId, selfData);
-        this.selectedMapPeerId = this.peerId;
         this.createVideoCard(selfData, this.localStream, true);
-        this.updateHostLocationPanel();
 
-        this.signaling.connect(this.roomId, selfData);
+        this.signaling.connect(this.roomId, selfData, this.hashSecret);
 
         this.playNotificationTone("join");
         this.showToast(`Anda masuk ke ruang ${this.roomId}`, "success");
@@ -1448,10 +1540,19 @@
         if (!p || p.peerId === this.peerId) return;
         this.lastSeenMap.set(p.peerId, Date.now());
 
-        const isNew = !this.participants.has(p.peerId);
+        const prev = this.participants.get(p.peerId);
+        const isNew = !prev;
+        // Pertahankan lokasi terakhir jika paket heartbeat sementara tidak membawa koordinat
+        if (!p.location && prev?.location) {
+          p.location = prev.location;
+        }
+
         this.participants.set(p.peerId, p);
         this.updateParticipantCount();
-        this.updateHostLocationPanel();
+
+        if (this.isHost) {
+          this.updateHostMapAndList();
+        }
 
         const nameLabel = document.getElementById(`name-${p.peerId}`);
         if (nameLabel) nameLabel.textContent = p.name;
@@ -1460,10 +1561,11 @@
           this.playNotificationTone("join");
           this.showToast(`${p.name} bergabung ke ruang rapat`, "info");
           this.appendSystemChat(`${p.name} bergabung ke ruang rapat.`);
-          if (this.isHost && p.location) {
-            this.selectedMapPeerId = p.peerId;
-            this.updateHostLocationPanel();
-          }
+        }
+
+        if (isDirectHello) {
+          // Kirim riwayat papan tulis jika papan tulis sudah memiliki gambar
+          this.whiteboard.syncHistoryToPeer(p.peerId);
         }
 
         if (!this.peers.has(p.peerId) && this.peerId > p.peerId) {
@@ -1480,7 +1582,15 @@
         this.closePeerConnection(remotePeerId);
         this.removeVideoCard(remotePeerId);
         this.updateParticipantCount();
-        this.updateHostLocationPanel();
+
+        if (this.isHost) {
+          const m = this.hostMarkers.get(remotePeerId);
+          if (m && this.hostMap) {
+            this.hostMap.removeLayer(m);
+            this.hostMarkers.delete(remotePeerId);
+          }
+          this.updateHostMapAndList();
+        }
 
         this.playNotificationTone("leave");
         this.showToast(`${p.name} meninggalkan ruang rapat`, "warning");
@@ -1604,7 +1714,6 @@
         this.iceQueues.delete(remotePeerId);
       }
 
-      /** Membuat kartu video peserta dengan tampilan penuh tanpa crop (object-contain) */
       createVideoCard(meta, stream, isLocal) {
         const stage = document.getElementById("videoStage");
         let card = document.getElementById(`card-${meta.peerId}`);
@@ -1779,84 +1888,124 @@
         this.showToast("Berbagi layar dihentikan", "info");
       }
 
-      /** Render Daftar Koordinat GPS & Peta Langsung untuk Host */
-      updateHostLocationPanel() {
+      /**
+       * =====================================================================
+       * PETA TITIK LOKASI INTERAKTIF (KHUSUS HOST)
+       * =====================================================================
+       */
+      ensureHostMapInitialized() {
+        if (!this.isHost || typeof L === "undefined") return;
+        if (!this.hostMap) {
+          const defaultCenter = this.locationSvc.coords
+            ? [this.locationSvc.coords.lat, this.locationSvc.coords.lng]
+            : [-2.5489, 118.0149];
+
+          this.hostMap = L.map("hostLeafletMap", {
+            zoomControl: true,
+            attributionControl: false
+          }).setView(defaultCenter, 13);
+
+          L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+            maxZoom: 19
+          }).addTo(this.hostMap);
+        }
+
+        setTimeout(() => {
+          this.hostMap?.invalidateSize();
+          this.updateHostMapAndList(true);
+        }, 80);
+      }
+
+      fitAllHostMarkers() {
+        if (!this.hostMap || this.hostMarkers.size === 0) return;
+        const group = L.featureGroup(Array.from(this.hostMarkers.values()));
+        this.hostMap.fitBounds(group.getBounds().pad(0.3), { maxZoom: 16 });
+      }
+
+      updateHostMapAndList(autoFit = false) {
         if (!this.isHost) return;
         const container = document.getElementById("hostLocationList");
-        const mapBox = document.getElementById("hostMapPreviewBox");
-        const mapTitle = document.getElementById("hostMapPreviewTitle");
-        const mapLink = document.getElementById("hostMapExternalLink");
-        const mapIframe = document.getElementById("hostMapIframe");
-
         container.innerHTML = "";
 
-        if (this.participants.size === 0) {
-          container.innerHTML = `<div class="text-xs text-slate-400 text-center py-4">Belum ada data peserta.</div>`;
-          return;
-        }
-
-        let activeMapParticipant = this.participants.get(this.selectedMapPeerId);
-        if (!activeMapParticipant || !activeMapParticipant.location) {
-          for (const p of this.participants.values()) {
-            if (p.location) {
-              activeMapParticipant = p;
-              this.selectedMapPeerId = p.peerId;
-              break;
-            }
-          }
-        }
-
-        if (activeMapParticipant && activeMapParticipant.location) {
-          const { lat, lng } = activeMapParticipant.location;
-          const delta = 0.008;
-          const bbox = `${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}`;
-          mapBox.classList.remove("hidden");
-          mapTitle.textContent = `Peta: ${activeMapParticipant.name}`;
-          mapLink.href = `https://www.google.com/maps?q=${lat},${lng}`;
-          const newSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
-          if (mapIframe.src !== newSrc) {
-            mapIframe.src = newSrc;
-          }
-        } else {
-          mapBox.classList.add("hidden");
-        }
+        const dotColors = ["#10b981", "#6366f1", "#f59e0b", "#ec4899", "#06b6d4", "#8b5cf6"];
+        let colorIdx = 0;
 
         this.participants.forEach((p) => {
           const loc = p.location;
-          const mapsUrl = loc ? `https://www.google.com/maps?q=${loc.lat},${loc.lng}` : "#";
-          const isSelected = p.peerId === this.selectedMapPeerId;
+          const dotColor = p.isHost ? "#6366f1" : dotColors[colorIdx++ % dotColors.length];
 
+          // Perbarui / buat titik marker di peta Leaflet
+          if (loc && this.hostMap) {
+            const markerHtml = `
+              <div class="map-dot-wrapper">
+                <div class="map-dot-pulse" style="background-color: ${dotColor};"></div>
+                <div class="map-dot-label">${this.escapeHTML(p.name)}</div>
+              </div>
+            `;
+            const icon = L.divIcon({
+              className: "",
+              html: markerHtml,
+              iconSize: [0, 0],
+              iconAnchor: [0, 0]
+            });
+
+            if (this.hostMarkers.has(p.peerId)) {
+              const existingMarker = this.hostMarkers.get(p.peerId);
+              existingMarker.setLatLng([loc.lat, loc.lng]);
+              existingMarker.setIcon(icon);
+            } else {
+              const marker = L.marker([loc.lat, loc.lng], { icon })
+                .addTo(this.hostMap)
+                .bindPopup(`
+                  <div style="color:#0f172a;font-size:12px;">
+                    <strong>${this.escapeHTML(p.name)}</strong><br/>
+                    Koordinat: ${loc.lat}, ${loc.lng}<br/>
+                    Akurasi: ±${loc.accuracy}m (${loc.updatedAt})
+                  </div>
+                `);
+              this.hostMarkers.set(p.peerId, marker);
+            }
+          }
+
+          // Render kartu daftar peserta di bawah peta
+          const mapsUrl = loc ? `https://www.google.com/maps?q=${loc.lat},${loc.lng}` : "#";
           const item = document.createElement("div");
-          item.className = `p-3 rounded-xl bg-slate-950 border ${isSelected ? "border-emerald-500/60" : "border-slate-800"} space-y-1.5 cursor-pointer hover:border-slate-700 transition`;
+          item.className = "p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/50 transition cursor-pointer flex items-center justify-between gap-2";
           item.innerHTML = `
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-white">${this.escapeHTML(p.name)} ${p.peerId === this.peerId ? "(Host)" : ""}</span>
-              <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400">GPS Aktif</span>
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-3 h-3 rounded-full shrink-0 border border-white/60" style="background-color: ${dotColor};"></span>
+              <div class="min-w-0">
+                <div class="text-xs font-bold text-white truncate">
+                  ${this.escapeHTML(p.name)} ${p.peerId === this.peerId ? "(Host)" : ""}
+                </div>
+                ${loc
+                  ? `<div class="text-[10px] font-mono text-slate-400 truncate">${loc.lat}, ${loc.lng} (±${loc.accuracy}m)</div>`
+                  : `<div class="text-[10px] text-amber-400">Menunggu sinyal GPS...</div>`
+                }
+              </div>
             </div>
             ${loc ? `
-              <div class="text-[11px] font-mono text-slate-300">
-                Lat: ${loc.lat} | Lng: ${loc.lng}
-              </div>
-              <div class="flex items-center justify-between pt-1">
-                <span class="text-[10px] text-slate-500">Akurasi ±${loc.accuracy}m • ${loc.updatedAt}</span>
-                <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
-                  class="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1" onclick="event.stopPropagation()">
-                  <span>Google Maps</span>
-                  <i data-lucide="external-link" class="w-3 h-3"></i>
-                </a>
-              </div>
-            ` : `<div class="text-xs text-slate-500">Menunggu sinyal koordinat...</div>`}
+              <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"
+                class="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-[10px] text-indigo-400 font-semibold border border-slate-800 shrink-0 flex items-center gap-1">
+                <span>Maps</span>
+                <i data-lucide="external-link" class="w-3 h-3"></i>
+              </a>
+            ` : ""}
           `;
 
           item.addEventListener("click", () => {
-            if (loc) {
-              this.selectedMapPeerId = p.peerId;
-              this.updateHostLocationPanel();
+            if (loc && this.hostMap) {
+              this.hostMap.flyTo([loc.lat, loc.lng], 16, { duration: 0.6 });
+              this.hostMarkers.get(p.peerId)?.openPopup();
             }
           });
 
           container.appendChild(item);
         });
+
+        if (autoFit) {
+          this.fitAllHostMarkers();
+        }
         lucide.createIcons();
       }
 
@@ -1889,11 +2038,14 @@
 
         document.getElementById("btnShareScreen").addEventListener("click", () => this.toggleScreenShare());
 
+        // Kontrol Papan Tulis (Otomatis menyiarkan pembukaan ke seluruh peserta)
         const wbContainer = document.getElementById("whiteboardContainer");
         document.getElementById("btnToggleWhiteboard").addEventListener("click", () => {
+          const isOpening = wbContainer.classList.contains("hidden");
           wbContainer.classList.toggle("hidden");
-          if (!wbContainer.classList.contains("hidden")) {
+          if (isOpening) {
             setTimeout(() => this.whiteboard.resizeCanvas(), 30);
+            this.whiteboard.announceOpen(this.userName);
           }
         });
         document.getElementById("btnCloseWhiteboard").addEventListener("click", () => {
@@ -1932,9 +2084,12 @@
           if (!wbContainer.classList.contains("hidden")) {
             this.whiteboard.resizeCanvas();
           }
+          if (this.hostMap) {
+            this.hostMap.invalidateSize();
+          }
         });
 
-        // Kontrol Panel Chat & Lokasi Host (Split-View di HP, Sidebar di Desktop)
+        // Kontrol Panel Chat & Peta Lokasi Host
         const drawer = document.getElementById("sideDrawer");
         const chatTabBtn = document.getElementById("tabChatBtn");
         const locTabBtn = document.getElementById("tabLocationBtn");
@@ -1953,12 +2108,12 @@
             this.unreadChatCount = 0;
             document.getElementById("unreadChatBadge").classList.add("hidden");
             document.getElementById("headerUnreadBadge").classList.add("hidden");
-          } else {
+          } else if (tab === "location" && this.isHost) {
             locContent.classList.remove("hidden");
             chatContent.classList.add("hidden");
             locTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white transition flex items-center gap-1.5";
             chatTabBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5";
-            this.updateHostLocationPanel();
+            this.ensureHostMapInitialized();
           }
         };
 
@@ -1971,6 +2126,7 @@
         };
 
         const toggleLocationPanel = () => {
+          if (!this.isHost) return;
           if (!drawer.classList.contains("hidden") && !locContent.classList.contains("hidden")) {
             drawer.classList.add("hidden");
           } else {
@@ -1984,9 +2140,10 @@
 
         document.getElementById("btnHostLocations").addEventListener("click", toggleLocationPanel);
         document.getElementById("btnHeaderLocations").addEventListener("click", toggleLocationPanel);
+        document.getElementById("btnFitAllMarkers").addEventListener("click", () => this.fitAllHostMarkers());
         document.getElementById("btnRefreshLocations").addEventListener("click", () => {
           this.signaling.announcePresence();
-          this.updateHostLocationPanel();
+          this.updateHostMapAndList(true);
           this.showToast("Memperbarui titik lokasi peserta...", "info");
         });
 
@@ -2053,7 +2210,6 @@
           badge.classList.remove("hidden");
           headerBadge.classList.remove("hidden");
 
-          // Tampilkan pratinjau pesan singkat di atas area video
           const preview = document.getElementById("floatingChatPreview");
           document.getElementById("floatingChatSender").textContent = msg.senderName;
           document.getElementById("floatingChatText").textContent = msg.text;
