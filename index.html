@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TemuDua — Video Call 1-on-1 Minimalis</title>
+  <title>TemuRuang — Video Conference Multi-Peserta Minimalis</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>
@@ -55,25 +55,25 @@
     Notifikasi
   </div>
 
-  <!-- Modal Undang Peserta Minimalis -->
+  <!-- Modal Undang Peserta (Tersedia Setelah Masuk Ruang) -->
   <div id="inviteModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
     <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl">
       <div class="flex items-center justify-between mb-1">
-        <h3 class="text-base font-semibold">Undang Peserta</h3>
+        <h3 class="text-base font-semibold">Undang Peserta ke Ruang</h3>
         <button onclick="closeInviteModal()" class="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 transition" title="Tutup">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
-      <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-5">Bagikan kode atau tautan sesi privat ini kepada 1 lawan bicara.</p>
+      <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-5">Bagikan kode atau tautan sesi ini untuk mengundang banyak peserta.</p>
 
       <!-- Kode Sesi & Salin Tautan -->
-      <div class="space-y-3 mb-5">
+      <div class="space-y-3 mb-4">
         <div>
-          <label class="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Kode Sesi</label>
+          <label class="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Kode Ruang</label>
           <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/70">
-            <span id="inviteSessionCode" class="font-mono text-sm font-semibold tracking-wider">TM2-0000</span>
+            <span id="inviteSessionCode" class="font-mono text-sm font-semibold tracking-wider">TMR-0000</span>
             <button type="button" onclick="copyInviteCode()" class="text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition">
               Salin Kode
             </button>
@@ -98,6 +98,20 @@
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- Tombol Simulasi Peserta Bergabung -->
+      <div class="mb-4">
+        <button
+          type="button"
+          onclick="simulateParticipantJoin()"
+          class="w-full py-2.5 px-4 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700/90 border border-zinc-200 dark:border-zinc-700 text-xs font-semibold flex items-center justify-center gap-2 transition"
+        >
+          <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
+          <span>Simulasikan Peserta Bergabung</span>
+        </button>
       </div>
 
       <!-- Kirim Langsung Opsional (Email / WhatsApp) -->
@@ -137,11 +151,11 @@
     </div>
   </div>
 
-  <!-- Modal Konfirmasi Keluar (Pengganti confirm) -->
+  <!-- Modal Konfirmasi Keluar -->
   <div id="leaveModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
     <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-xs w-full p-6 shadow-2xl text-center">
-      <h3 class="text-base font-semibold mb-1.5">Akhiri Panggilan?</h3>
-      <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-5">Sesi diskusi 1-on-1 Anda akan segera ditutup.</p>
+      <h3 class="text-base font-semibold mb-1.5">Akhiri Sesi Ruang?</h3>
+      <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-5">Anda akan keluar dari ruang conference ini.</p>
       <div class="flex gap-2.5">
         <button onclick="closeLeaveModal()" class="flex-1 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs font-medium transition">
           Batal
@@ -159,9 +173,9 @@
     <header class="max-w-4xl w-full mx-auto flex items-center justify-between">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center font-bold text-xs tracking-tighter">
-          T2
+          TR
         </div>
-        <span class="font-semibold text-base tracking-tight">TemuDua</span>
+        <span class="font-semibold text-base tracking-tight">TemuRuang</span>
       </div>
 
       <button onclick="toggleTheme()" class="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-400 transition" title="Ganti Tema">
@@ -188,10 +202,11 @@
             <span class="text-xs text-zinc-400">Kamera Nonaktif</span>
           </div>
 
-          <!-- Label Nama -->
+          <!-- Label Nama & Host -->
           <div class="absolute bottom-3.5 left-3.5 bg-black/55 backdrop-blur-md text-white px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-2">
             <span id="lobbyMicBadge" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             <span id="lobbyNamePreview">Tamu</span>
+            <span class="px-1.5 py-0.5 rounded bg-white/15 text-[10px] font-semibold">Host</span>
           </div>
 
           <!-- Tombol Mic & Kamera -->
@@ -218,17 +233,20 @@
         </div>
       </div>
 
-      <!-- Form Masuk Minimalis (Tanpa Link/Lokasi) -->
+      <!-- Form Masuk Minimalis (Tanpa kotak tautan undangan di lobi) -->
       <div class="md:col-span-5 flex flex-col justify-center">
-        <h1 class="text-2xl font-semibold tracking-tight mb-1.5">Masuk ke Ruang</h1>
+        <span class="inline-flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-full bg-zinc-200/70 dark:bg-zinc-800 text-[11px] font-medium text-zinc-700 dark:text-zinc-300 mb-3">
+          Ruang Multi-Peserta
+        </span>
+        <h1 class="text-2xl font-semibold tracking-tight mb-1.5">Mulai Pertemuan</h1>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
-          Panggilan video privat khusus dua orang.
+          Masukkan nama Anda sebagai Host. Anda dapat mengundang peserta lain setelah berada di dalam ruang.
         </p>
 
         <form onsubmit="handleJoinRoom(event)" class="space-y-4">
           <div>
             <label for="userNameInput" class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">
-              Nama Tampilan
+              Nama Tampilan Host
             </label>
             <input
               type="text"
@@ -249,21 +267,8 @@
             disabled
             class="w-full py-3 px-5 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600 disabled:cursor-not-allowed text-white dark:text-zinc-900 font-medium text-sm transition"
           >
-            Gabung
+            Masuk ke Ruang
           </button>
-
-          <div class="pt-1 flex justify-center">
-            <button
-              type="button"
-              onclick="openInviteModal()"
-              class="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-              <span>Undang peserta</span>
-            </button>
-          </div>
         </form>
       </div>
     </main>
@@ -271,18 +276,22 @@
     <div class="h-4"></div>
   </div>
 
-  <!-- ==================== 2. RUANG VIDEO CONFERENCE ==================== -->
+  <!-- ==================== 2. RUANG VIDEO CONFERENCE MULTI-PESERTA ==================== -->
   <div id="roomScreen" class="hidden h-full w-full flex flex-col bg-zinc-50 dark:bg-zinc-950">
     
     <!-- Top Header Minimalis -->
     <header class="h-14 px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
       <div class="flex items-center gap-3">
-        <span class="font-semibold text-sm tracking-tight">TemuDua</span>
+        <span class="font-semibold text-sm tracking-tight">TemuRuang</span>
         <span class="text-zinc-300 dark:text-zinc-700">•</span>
         <div class="flex items-center gap-1.5 text-xs font-mono text-zinc-500 dark:text-zinc-400">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
           <span id="callTimer">00:00</span>
         </div>
+
+        <span id="headerParticipantCount" class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-200/70 dark:bg-zinc-800 text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
+          1 Peserta
+        </span>
 
         <div id="recordingIndicator" class="hidden items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[11px] font-medium">
           <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
@@ -291,19 +300,12 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <!-- Tombol Undang Peserta -->
-        <button onclick="openInviteModal()" class="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-700 dark:text-zinc-200 text-xs font-medium flex items-center gap-1.5 transition" title="Undang Peserta">
+        <!-- Tombol Undang Peserta (Host mengundang setelah masuk web) -->
+        <button onclick="openInviteModal()" class="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-medium flex items-center gap-1.5 transition" title="Undang Peserta ke Ruang">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
           <span>Undang</span>
-        </button>
-
-        <!-- Ubah Tata Letak (Split / PiP) -->
-        <button onclick="toggleVideoLayout()" class="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-400 transition" title="Ubah Tata Letak">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-          </svg>
         </button>
 
         <!-- Toggle Tema -->
@@ -324,25 +326,34 @@
       <!-- Container Emoji Mengambang -->
       <div id="floatingEmojiContainer" class="absolute inset-0 pointer-events-none overflow-hidden z-40"></div>
 
-      <!-- Area Video & Whiteboard -->
+      <!-- Area Video Grid & Whiteboard -->
       <div class="flex-1 flex flex-col overflow-hidden relative">
         
-        <!-- Whiteboard Kanvas Bersih -->
+        <!-- Whiteboard Kanvas Kolaboratif -->
         <div id="whiteboardSection" class="hidden flex-1 flex flex-col bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
           <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
               <button onclick="setWbTool('pen')" id="wbPenBtn" class="px-2.5 py-1 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-medium">Pensil</button>
-              <button onclick="setWbTool('eraser')" id="wbEraserBtn" class="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-xs font-medium">Hapus</button>
+              <button onclick="setWbTool('eraser')" id="wbEraserBtn" class="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-xs font-medium">Penghapus</button>
+              
+              <!-- Pilihan Warna -->
               <div class="flex items-center gap-1.5 ml-1">
-                <button onclick="setWbColor('#18181b')" class="w-4 h-4 rounded-full bg-zinc-900 border border-zinc-300"></button>
-                <button onclick="setWbColor('#2563eb')" class="w-4 h-4 rounded-full bg-blue-600"></button>
-                <button onclick="setWbColor('#e11d48')" class="w-4 h-4 rounded-full bg-rose-600"></button>
-                <button onclick="setWbColor('#059669')" class="w-4 h-4 rounded-full bg-emerald-600"></button>
+                <button onclick="setWbColor('#18181b')" class="w-4 h-4 rounded-full bg-zinc-900 border border-zinc-300" title="Hitam"></button>
+                <button onclick="setWbColor('#2563eb')" class="w-4 h-4 rounded-full bg-blue-600" title="Biru"></button>
+                <button onclick="setWbColor('#e11d48')" class="w-4 h-4 rounded-full bg-rose-600" title="Merah"></button>
+                <button onclick="setWbColor('#059669')" class="w-4 h-4 rounded-full bg-emerald-600" title="Hijau"></button>
               </div>
+
+              <!-- Ukuran Kuas -->
+              <select id="wbBrushSize" onchange="wbSize = Number(this.value)" class="ml-1 px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-xs focus:outline-none">
+                <option value="2">Tipis</option>
+                <option value="4" selected>Sedang</option>
+                <option value="8">Tebal</option>
+              </select>
             </div>
             <div class="flex items-center gap-1.5">
               <button onclick="clearWhiteboard()" class="px-2.5 py-1 rounded-lg text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/10">Bersihkan</button>
-              <button onclick="downloadWhiteboard()" class="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-xs font-medium">Unduh</button>
+              <button onclick="downloadWhiteboard()" class="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-xs font-medium">Unduh PNG</button>
               <button onclick="toggleWhiteboard()" class="px-2.5 py-1 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-medium">Selesai</button>
             </div>
           </div>
@@ -351,32 +362,17 @@
           </div>
         </div>
 
-        <!-- Stage Video 1-on-1 -->
-        <div id="videoStage" class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 h-full relative">
+        <!-- Stage Video Multi-Peserta (Grid Responsif Otomatis) -->
+        <div id="videoStage" class="flex-1 grid grid-cols-1 gap-3 sm:gap-4 h-full overflow-y-auto relative">
           
-          <!-- Lawan Bicara -->
-          <div id="remoteVideoCard" class="relative rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center">
-            <div class="flex flex-col items-center justify-center">
-              <div class="w-24 h-24 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-2xl font-semibold text-zinc-200">
-                NP
-              </div>
-              <p class="mt-3 text-sm font-medium text-zinc-200">Nadya Putri</p>
-            </div>
-
-            <div class="absolute bottom-3.5 left-3.5 bg-black/55 backdrop-blur-md text-white px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              <span>Nadya Putri</span>
-            </div>
-          </div>
-
-          <!-- Pengguna Lokal -->
-          <div id="localVideoCard" class="relative rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center">
+          <!-- Kartu Host (Pengguna Lokal) -->
+          <div id="localVideoCard" class="relative rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center min-h-[200px]">
             <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover scale-x-[-1] hidden"></video>
             <video id="screenShareVideo" autoplay muted playsinline class="w-full h-full object-contain bg-black hidden"></video>
 
             <div id="localAvatarFallback" class="absolute inset-0 bg-zinc-900 flex flex-col items-center justify-center">
-              <div id="localRoomInitials" class="w-24 h-24 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-2xl font-semibold text-zinc-200">
-                AN
+              <div id="localRoomInitials" class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-2xl font-semibold text-zinc-200">
+                HS
               </div>
               <p id="localRoomCenterName" class="mt-3 text-sm font-medium text-zinc-200">Anda</p>
             </div>
@@ -389,24 +385,37 @@
               Berbagi Layar
             </div>
 
+            <!-- Banner Ajakan Undang saat baru sendiri -->
+            <div id="emptyRoomHint" class="absolute top-3.5 left-3.5 bg-black/55 backdrop-blur-md text-zinc-200 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2">
+              <span>Menunggu peserta lain...</span>
+              <button onclick="openInviteModal()" class="underline font-semibold text-white hover:text-zinc-300">Undang</button>
+            </div>
+
             <div class="absolute bottom-3.5 left-3.5 bg-black/55 backdrop-blur-md text-white px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-2">
               <span id="localRoomMicDot" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               <span id="localRoomNameLabel">Anda</span>
+              <span class="px-1.5 py-0.5 rounded bg-white/15 text-[10px] font-semibold">Host</span>
             </div>
           </div>
+
+          <!-- Kartu Peserta Tambahan akan dirender secara dinamis ke dalam #videoStage -->
 
         </div>
       </div>
 
-      <!-- Panel Samping Minimalis: Chatbox & Catatan Bersama -->
+      <!-- Panel Samping Minimalis: 3 Tab (Chat, Peserta, Catatan) -->
       <aside id="sidePanel" class="w-full sm:w-80 md:w-96 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl flex flex-col shrink-0 z-30 absolute sm:relative inset-3 sm:inset-auto shadow-xl sm:shadow-none">
         <!-- Tab Header -->
         <div class="h-12 px-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between shrink-0">
           <div class="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
-            <button onclick="switchSideTab('chat')" id="tabChatBtn" class="px-3 py-1 rounded-lg bg-white dark:bg-zinc-700 text-xs font-medium shadow-sm transition">
-              Chatbox
+            <button onclick="switchSideTab('chat')" id="tabChatBtn" class="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-700 text-xs font-medium shadow-sm transition">
+              Chat
             </button>
-            <button onclick="switchSideTab('notes')" id="tabNotesBtn" class="px-3 py-1 rounded-lg text-zinc-500 dark:text-zinc-400 text-xs font-medium transition">
+            <button onclick="switchSideTab('participants')" id="tabParticipantsBtn" class="px-2.5 py-1 rounded-lg text-zinc-500 dark:text-zinc-400 text-xs font-medium transition flex items-center gap-1">
+              <span>Peserta</span>
+              <span id="tabParticipantBadge" class="px-1.5 py-0.2 rounded-full bg-zinc-200 dark:bg-zinc-700 text-[10px]">1</span>
+            </button>
+            <button onclick="switchSideTab('notes')" id="tabNotesBtn" class="px-2.5 py-1 rounded-lg text-zinc-500 dark:text-zinc-400 text-xs font-medium transition">
               Catatan
             </button>
           </div>
@@ -418,12 +427,12 @@
           </button>
         </div>
 
-        <!-- Tab 1: Chatbox -->
+        <!-- Tab 1: Chatbox Grup -->
         <div id="chatTabContent" class="flex-1 flex flex-col overflow-hidden">
           <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-3"></div>
 
           <div id="typingIndicator" class="hidden px-4 py-1 text-[11px] text-zinc-400">
-            Nadya sedang mengetik...
+            Seseorang sedang mengetik...
           </div>
 
           <!-- Pratinjau Reply -->
@@ -452,7 +461,7 @@
               <input
                 type="text"
                 id="chatInput"
-                placeholder="Tulis pesan..."
+                placeholder="Kirim pesan ke semua..."
                 autocomplete="off"
                 class="flex-1 px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-xs sm:text-sm focus:outline-none"
               />
@@ -466,7 +475,20 @@
           </form>
         </div>
 
-        <!-- Tab 2: Catatan Bersama -->
+        <!-- Tab 2: Daftar Peserta -->
+        <div id="participantsTabContent" class="hidden flex-1 flex flex-col p-3.5 overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400" id="participantListSummary">1 Peserta Aktif</span>
+            <button onclick="openInviteModal()" class="px-2.5 py-1 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-medium flex items-center gap-1 hover:opacity-90 transition">
+              <span>+ Undang</span>
+            </button>
+          </div>
+          <div id="participantsListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1">
+            <!-- Daftar peserta dirender dinamis -->
+          </div>
+        </div>
+
+        <!-- Tab 3: Catatan Bersama -->
         <div id="notesTabContent" class="hidden flex-1 flex flex-col p-3.5 overflow-hidden">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs text-zinc-500">Catatan Rapat</span>
@@ -480,9 +502,9 @@
             placeholder="Catat poin diskusi di sini..."
             class="flex-1 w-full p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-800 text-xs sm:text-sm leading-relaxed resize-none focus:outline-none"
           >• Poin Diskusi:
-1. Pembukaan & penyelarasan topik
-2. Pembahasan detail
-3. Kesimpulan</textarea>
+1. Pembukaan & perkenalan peserta
+2. Pembahasan agenda utama
+3. Kesimpulan & tindak lanjut</textarea>
         </div>
       </aside>
     </div>
@@ -550,8 +572,8 @@
           <button onclick="triggerFloatingEmoji('👏')" class="w-8 h-8 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm transition">👏</button>
         </div>
 
-        <!-- Toggle Chatbox / Catatan -->
-        <button onclick="toggleSidePanel()" class="relative p-2.5 sm:p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition" title="Chatbox & Catatan">
+        <!-- Toggle Sidebar -->
+        <button onclick="toggleSidePanel()" class="relative p-2.5 sm:p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition" title="Panel Samping (Chat, Peserta, Catatan)">
           <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
@@ -567,15 +589,15 @@
   </div>
 
   <script>
-    let userName = '';
-    let userInitials = '??';
+    // State Utama
+    let hostName = '';
+    let hostInitials = '??';
     let isMicOn = true;
     let isCamOn = true;
     let isBlurOn = false;
     let isScreenSharing = false;
     let isWhiteboardOpen = false;
     let isSidePanelOpen = true;
-    let isPipLayout = false;
 
     let localStream = null;
     let screenStream = null;
@@ -587,10 +609,26 @@
     let mediaRecorder = null;
     let recordedChunks = [];
 
+    // Daftar Peserta Simulasi (Dimulai kosong, Host mengundang setelah masuk)
+    let invitedParticipants = [];
+    const candidateNames = [
+      'Nadya Putri',
+      'Rizky Pratama',
+      'Siti Aminah',
+      'Dimas Saputra',
+      'Ayu Lestari',
+      'Fajar Nugroho',
+      'Intan Permata',
+      'Budi Santoso',
+      'Citra Kirana',
+      'Hendra Wijaya'
+    ];
+    let candidateIndex = 0;
+
     // Kode Sesi & Tautan Undangan
-    const sessionCode = 'TM2-' + Math.floor(1000 + Math.random() * 9000);
+    const sessionCode = 'TMR-' + Math.floor(1000 + Math.random() * 9000);
     const baseUrl = window.location.href.split('?')[0];
-    const inviteUrl = `${baseUrl}?sesi=${sessionCode}`;
+    const inviteUrl = `${baseUrl}?ruang=${sessionCode}`;
     document.getElementById('inviteSessionCode').textContent = sessionCode;
     document.getElementById('inviteLinkInput').value = inviteUrl;
 
@@ -665,17 +703,18 @@
       }
     }
 
+    // Masuk ke Ruang sebagai Host
     function handleJoinRoom(e) {
       e.preventDefault();
       const inputVal = document.getElementById('userNameInput').value.trim();
       if (inputVal.length < 2) return;
 
-      userName = inputVal;
-      userInitials = getInitials(userName);
+      hostName = inputVal;
+      hostInitials = getInitials(hostName);
 
-      document.getElementById('localRoomNameLabel').textContent = `${userName} (Anda)`;
-      document.getElementById('localRoomCenterName').textContent = userName;
-      document.getElementById('localRoomInitials').textContent = userInitials;
+      document.getElementById('localRoomNameLabel').textContent = `${hostName} (Anda)`;
+      document.getElementById('localRoomCenterName').textContent = hostName;
+      document.getElementById('localRoomInitials').textContent = hostInitials;
 
       if (localStream) {
         document.getElementById('localVideo').srcObject = localStream;
@@ -687,10 +726,142 @@
 
       startCallTimer();
       resizeWhiteboard();
+      renderParticipantsUI();
 
+      // Pesan sistem pembuka di chat
+      appendSystemMessage(`Anda masuk sebagai Host. Klik tombol "Undang" di atas untuk mengundang peserta lain.`);
+    }
+
+    // Manajemen Multi-Peserta (Undang & Keluarkan)
+    function simulateParticipantJoin() {
+      const baseName = candidateNames[candidateIndex % candidateNames.length];
+      const suffix = candidateIndex >= candidateNames.length ? ` ${Math.floor(candidateIndex / candidateNames.length) + 1}` : '';
+      const fullName = baseName + suffix;
+      candidateIndex++;
+
+      const newParticipant = {
+        id: 'p-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+        name: fullName,
+        initials: getInitials(fullName),
+        micOn: true
+      };
+
+      invitedParticipants.push(newParticipant);
+      renderParticipantsUI();
+      closeInviteModal();
+
+      showToast(`${fullName} bergabung ke ruang`);
+      appendSystemMessage(`${fullName} bergabung ke ruang.`);
+
+      // Sapaan singkat dari peserta yang baru masuk
       setTimeout(() => {
-        receiveSimulatedMessage(`Halo ${userName}, senang bisa berdiskusi berdua!`);
-      }, 1000);
+        if (invitedParticipants.some(p => p.id === newParticipant.id)) {
+          appendMessage({
+            sender: newParticipant.name,
+            text: `Halo semuanya, salam kenal!`,
+            isSelf: false
+          });
+        }
+      }, 900);
+    }
+
+    function removeParticipant(participantId) {
+      const target = invitedParticipants.find(p => p.id === participantId);
+      if (!target) return;
+
+      invitedParticipants = invitedParticipants.filter(p => p.id !== participantId);
+      renderParticipantsUI();
+      showToast(`${target.name} dikeluarkan dari ruang`);
+      appendSystemMessage(`${target.name} telah dikeluarkan oleh Host.`);
+    }
+
+    function renderParticipantsUI() {
+      const stage = document.getElementById('videoStage');
+      const totalCount = 1 + invitedParticipants.length;
+
+      // Update indikator jumlah peserta
+      document.getElementById('headerParticipantCount').textContent = `${totalCount} Peserta`;
+      document.getElementById('tabParticipantBadge').textContent = totalCount;
+      document.getElementById('participantListSummary').textContent = `${totalCount} Peserta Aktif`;
+
+      // Tampilkan atau sembunyikan ajakan undang di kartu host
+      document.getElementById('emptyRoomHint').classList.toggle('hidden', invitedParticipants.length > 0);
+
+      // Atur Grid Responsif Otomatis berdasarkan jumlah peserta
+      stage.className = 'flex-1 grid gap-3 sm:gap-4 h-full overflow-y-auto relative ';
+      if (totalCount === 1) {
+        stage.className += 'grid-cols-1';
+      } else if (totalCount === 2) {
+        stage.className += 'grid-cols-1 md:grid-cols-2';
+      } else if (totalCount <= 4) {
+        stage.className += 'grid-cols-1 sm:grid-cols-2';
+      } else {
+        stage.className += 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+      }
+
+      // Hapus kartu peserta simulasi lama sebelum merender ulang
+      stage.querySelectorAll('.remote-participant-card').forEach(el => el.remove());
+
+      // Render kartu video setiap peserta
+      invitedParticipants.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'remote-participant-card relative rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center min-h-[200px] group';
+        card.innerHTML = `
+          <div class="flex flex-col items-center justify-center">
+            <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-2xl font-semibold text-zinc-200">
+              ${p.initials}
+            </div>
+            <p class="mt-3 text-sm font-medium text-zinc-200">${p.name}</p>
+          </div>
+
+          <button onclick="removeParticipant('${p.id}')" class="opacity-0 group-hover:opacity-100 absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-black/65 hover:bg-rose-600 text-white text-[11px] font-medium backdrop-blur transition" title="Keluarkan Peserta">
+            Keluarkan
+          </button>
+
+          <div class="absolute bottom-3.5 left-3.5 bg-black/55 backdrop-blur-md text-white px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>${p.name}</span>
+          </div>
+        `;
+        stage.appendChild(card);
+      });
+
+      // Render Daftar Peserta di Tab Peserta
+      const listContainer = document.getElementById('participantsListContainer');
+      listContainer.innerHTML = `
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/70 dark:border-zinc-800">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-8 h-8 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center text-xs font-semibold shrink-0">
+              ${hostInitials}
+            </div>
+            <div class="truncate">
+              <p class="text-xs font-semibold truncate">${hostName} <span class="text-zinc-400 font-normal">(Anda)</span></p>
+              <span class="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Host</span>
+            </div>
+          </div>
+          <span class="w-2 h-2 rounded-full ${isMicOn ? 'bg-emerald-500' : 'bg-rose-500'} shrink-0"></span>
+        </div>
+      `;
+
+      invitedParticipants.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/70 dark:border-zinc-800';
+        row.innerHTML = `
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 flex items-center justify-center text-xs font-semibold shrink-0">
+              ${p.initials}
+            </div>
+            <div class="truncate">
+              <p class="text-xs font-medium truncate">${p.name}</p>
+              <span class="text-[10px] text-zinc-400">Peserta</span>
+            </div>
+          </div>
+          <button onclick="removeParticipant('${p.id}')" class="px-2 py-1 rounded-lg text-[11px] text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition shrink-0">
+            Keluarkan
+          </button>
+        `;
+        listContainer.appendChild(row);
+      });
     }
 
     function startCallTimer() {
@@ -724,6 +895,7 @@
       isMicOn = !isMicOn;
       if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = isMicOn);
       updateRoomMediaUI();
+      renderParticipantsUI();
       showToast(isMicOn ? 'Mikrofon aktif' : 'Mikrofon dibisukan');
     }
 
@@ -806,26 +978,13 @@
       showToast('Berbagi layar berhenti');
     }
 
-    function toggleVideoLayout() {
-      isPipLayout = !isPipLayout;
-      const stage = document.getElementById('videoStage');
-      const localCard = document.getElementById('localVideoCard');
-
-      if (isPipLayout) {
-        stage.classList.remove('md:grid-cols-2');
-        localCard.className = 'absolute bottom-4 right-4 w-40 sm:w-56 aspect-video rounded-xl overflow-hidden bg-zinc-900 border border-zinc-700 shadow-xl z-10';
-      } else {
-        stage.classList.add('md:grid-cols-2');
-        localCard.className = 'relative rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center';
-      }
-    }
-
-    // Whiteboard
+    // Whiteboard Kolaboratif
     const canvas = document.getElementById('whiteboardCanvas');
     const ctx = canvas.getContext('2d');
     let drawing = false;
     let wbTool = 'pen';
     let wbColor = '#18181b';
+    let wbSize = 4;
 
     function toggleWhiteboard() {
       isWhiteboardOpen = !isWhiteboardOpen;
@@ -871,7 +1030,7 @@
 
     function downloadWhiteboard() {
       const link = document.createElement('a');
-      link.download = `Whiteboard-${Date.now()}.png`;
+      link.download = `Whiteboard-TemuRuang-${Date.now()}.png`;
       link.href = canvas.toDataURL();
       link.click();
     }
@@ -893,7 +1052,7 @@
     canvas.addEventListener('mousemove', (e) => {
       if (!drawing) return;
       const pos = getPointerPos(e);
-      ctx.lineWidth = wbTool === 'eraser' ? 22 : 4;
+      ctx.lineWidth = wbTool === 'eraser' ? 22 : wbSize;
       ctx.lineCap = 'round';
       ctx.strokeStyle = wbTool === 'eraser' ? '#ffffff' : wbColor;
       ctx.lineTo(pos.x, pos.y);
@@ -903,7 +1062,16 @@
     canvas.addEventListener('mouseup', () => drawing = false);
     canvas.addEventListener('mouseleave', () => drawing = false);
 
-    // Chatbox
+    // Chatbox Grup
+    function appendSystemMessage(text) {
+      const chatBox = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.className = 'text-center my-1';
+      div.innerHTML = `<span class="inline-block px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800/80 text-[11px] text-zinc-500 dark:text-zinc-400">${text}</span>`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
     function appendMessage({ sender, text, isSelf, replyTo = null, file = null }) {
       const chatBox = document.getElementById('chatMessages');
       const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -983,10 +1151,10 @@
       const text = input.value.trim();
       if (!text) return;
 
-      appendMessage({ sender: userName, text, isSelf: true, replyTo: currentReply });
+      appendMessage({ sender: hostName, text, isSelf: true, replyTo: currentReply });
       input.value = '';
       cancelReply();
-      simulatePeerReply(text);
+      simulateGroupReply(text);
     }
 
     function handleFileUpload(e) {
@@ -995,7 +1163,7 @@
 
       const fileUrl = URL.createObjectURL(file);
       appendMessage({
-        sender: userName,
+        sender: hostName,
         text: '',
         isSelf: true,
         replyTo: currentReply,
@@ -1004,32 +1172,36 @@
 
       cancelReply();
       e.target.value = '';
-      simulatePeerReply(`File "${file.name}" sudah diterima.`);
+      simulateGroupReply(`File "${file.name}" sudah kami terima.`);
     }
 
-    function simulatePeerReply(userText) {
+    function simulateGroupReply(userText) {
+      if (invitedParticipants.length === 0) return;
+
+      const responder = invitedParticipants[Math.floor(Math.random() * invitedParticipants.length)];
       const typing = document.getElementById('typingIndicator');
+      typing.textContent = `${responder.name} sedang mengetik...`;
       typing.classList.remove('hidden');
 
       setTimeout(() => {
         typing.classList.add('hidden');
+        if (!invitedParticipants.some(p => p.id === responder.id)) return;
+
         const replies = [
-          'Baik, saya setuju.',
-          'Oke, poin itu sudah saya catat.',
+          'Siap, setuju dengan arahan Host.',
+          'Oke, poin itu sudah dicatat.',
           'Jelas sekali, silakan lanjutkan.',
-          'Kita bisa rangkum di tab Catatan ya.'
+          'Bisa kita rangkum juga di tab Catatan.'
         ];
         const replyText = userText.startsWith('File "')
           ? userText
           : replies[Math.floor(Math.random() * replies.length)];
-        receiveSimulatedMessage(replyText);
+
+        appendMessage({ sender: responder.name, text: replyText, isSelf: false });
       }, 1300);
     }
 
-    function receiveSimulatedMessage(text) {
-      appendMessage({ sender: 'Nadya Putri', text, isSelf: false });
-    }
-
+    // Navigasi 3 Tab Sidebar (Chat, Peserta, Catatan)
     function toggleSidePanel() {
       isSidePanelOpen = !isSidePanelOpen;
       document.getElementById('sidePanel').classList.toggle('hidden', !isSidePanelOpen);
@@ -1039,17 +1211,16 @@
     }
 
     function switchSideTab(tab) {
-      const isChat = tab === 'chat';
-      document.getElementById('chatTabContent').classList.toggle('hidden', !isChat);
-      document.getElementById('notesTabContent').classList.toggle('hidden', isChat);
+      document.getElementById('chatTabContent').classList.toggle('hidden', tab !== 'chat');
+      document.getElementById('participantsTabContent').classList.toggle('hidden', tab !== 'participants');
+      document.getElementById('notesTabContent').classList.toggle('hidden', tab !== 'notes');
 
-      document.getElementById('tabChatBtn').className = isChat
-        ? 'px-3 py-1 rounded-lg bg-white dark:bg-zinc-700 text-xs font-medium shadow-sm transition'
-        : 'px-3 py-1 rounded-lg text-zinc-500 dark:text-zinc-400 text-xs font-medium transition';
+      const activeClass = 'px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-700 text-xs font-medium shadow-sm transition';
+      const inactiveClass = 'px-2.5 py-1 rounded-lg text-zinc-500 dark:text-zinc-400 text-xs font-medium transition';
 
-      document.getElementById('tabNotesBtn').className = !isChat
-        ? 'px-3 py-1 rounded-lg bg-white dark:bg-zinc-700 text-xs font-medium shadow-sm transition'
-        : 'px-3 py-1 rounded-lg text-zinc-500 dark:text-zinc-400 text-xs font-medium transition';
+      document.getElementById('tabChatBtn').className = tab === 'chat' ? activeClass : inactiveClass;
+      document.getElementById('tabParticipantsBtn').className = (tab === 'participants' ? activeClass : inactiveClass) + ' flex items-center gap-1';
+      document.getElementById('tabNotesBtn').className = tab === 'notes' ? activeClass : inactiveClass;
     }
 
     function copySharedNotes() {
@@ -1064,7 +1235,7 @@
       const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `Catatan-TemuDua.txt`;
+      link.download = `Catatan-TemuRuang-${sessionCode}.txt`;
       link.click();
     }
 
@@ -1091,9 +1262,9 @@
           const blob = new Blob(recordedChunks, { type: 'video/webm' });
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
-          a.download = `Rekaman-TemuDua-${Date.now()}.webm`;
+          a.download = `Rekaman-TemuRuang-${Date.now()}.webm`;
           a.click();
-          showToast('Rekaman diunduh');
+          showToast('Rekaman diunduh (.webm)');
         };
 
         mediaRecorder.start();
@@ -1129,7 +1300,7 @@
       document.documentElement.classList.toggle('dark');
     }
 
-    // Fasilitas Undang Peserta
+    // Modal Undang Peserta
     function openInviteModal() {
       const modal = document.getElementById('inviteModal');
       modal.classList.remove('hidden');
@@ -1153,7 +1324,7 @@
 
     function copyInviteCode() {
       copyTextFallback(sessionCode);
-      showToast(`Kode sesi ${sessionCode} disalin`);
+      showToast(`Kode ruang ${sessionCode} disalin`);
     }
 
     function copyInviteLink() {
@@ -1163,11 +1334,10 @@
 
     function sendInviteVia(platform) {
       const contact = document.getElementById('inviteContactInput').value.trim();
-      const inviterName = userName || document.getElementById('userNameInput').value.trim() || 'Seseorang';
-      const message = `Halo! ${inviterName} mengundang Anda bergabung ke panggilan video 1-on-1 di TemuDua.\n\nKode Sesi: ${sessionCode}\nTautan: ${inviteUrl}`;
+      const message = `Halo! ${hostName || 'Host'} mengundang Anda bergabung ke ruang video conference TemuRuang.\n\nKode Ruang: ${sessionCode}\nTautan: ${inviteUrl}`;
 
       if (platform === 'email') {
-        const subject = encodeURIComponent(`Undangan Panggilan Video TemuDua (${sessionCode})`);
+        const subject = encodeURIComponent(`Undangan TemuRuang (${sessionCode})`);
         const body = encodeURIComponent(message);
         const mailTarget = contact.includes('@') ? contact : '';
         window.open(`mailto:${mailTarget}?subject=${subject}&body=${body}`, '_blank');
