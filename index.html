@@ -799,11 +799,15 @@
       syncInviteModalData();
     }
 
+    // Jalankan inisialisasi peran lobi saat halaman pertama kali dibuka
     setupLobbyByRole();
 
-    // Inisialisasi Kamera Lobi
+    // Inisialisasi Kamera Lobi dengan penanganan error lengkap
     async function initMediaDevices() {
       try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Browser tidak mendukung mediaDevices');
+        }
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         const lobbyVideo = document.getElementById('lobbyVideo');
         lobbyVideo.srcObject = localStream;
@@ -811,6 +815,7 @@
         document.getElementById('lobbyAvatarFallback').classList.add('hidden');
       } catch (err) {
         isCamOn = false;
+        isMicOn = false;
         updateLobbyMediaUI();
       }
     }
@@ -1311,6 +1316,28 @@
 
     canvas.addEventListener('mouseup', () => drawing = false);
     canvas.addEventListener('mouseleave', () => drawing = false);
+
+    // Dukungan Layar Sentuh (Touch) untuk Whiteboard di HP/Tablet
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      drawing = true;
+      const pos = getPointerPos(e);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!drawing) return;
+      const pos = getPointerPos(e);
+      ctx.lineWidth = wbTool === 'eraser' ? 22 : wbSize;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = wbTool === 'eraser' ? '#ffffff' : wbColor;
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => drawing = false);
 
     // Chatbox Grup
     function appendSystemMessage(text) {
