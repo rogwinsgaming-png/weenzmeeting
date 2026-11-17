@@ -711,6 +711,14 @@
     let remoteParticipants = [];
     const candidateNames = [
       'Nadya Putri',
+      'Raka Pratama',
+      'Siti Aminah',
+      'Dimas Saputra',
+      'Aulia Rahma',
+      'Fajar Nugroho'
+    ];
+    let candidateIndex = 0;
+
     // Kode Sesi & Tautan Undangan (Format Hash URL murni agar 100% kompatibel dengan GitHub Pages)
     let sessionCode = isInvitedGuest
       ? parsedInvite.room.toUpperCase()
@@ -928,12 +936,13 @@
         setTimeout(() => {
           appendMessage({
             sender: inviterHostName,
-    // Uji Alur Undangan: Buka Tampilan Sebagai Peserta (Kompatibel untuk iFrame/Blob maupun Tab Baru)
-    function testJoinAsParticipant() {
-      const guestUrl = buildInviteUrl();
-      closeInviteModal();
+            text: `Halo ${currentUserName}! Selamat bergabung di ruang ${sessionCode}.`,
+            isSelf: false
+          });
+        }, 900);
+      }
+    }
 
-      // Jika berjalan di environment sandbox/blob/srcdoc, muat ulang langsung dengan hash undangan agar pasti masuk
     // Uji Alur Undangan: Buka Tampilan Sebagai Peserta di Tab Baru GitHub Pages
     function testJoinAsParticipant() {
       const guestUrl = buildInviteUrl();
