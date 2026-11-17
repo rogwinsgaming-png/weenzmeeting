@@ -736,6 +736,77 @@
     async function initMediaDevices() {
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const lobbyVideo = document.getElementById('lobbyVideo');
+        lobbyVideo.srcObject = localStream;
+        lobbyVideo.classList.remove('hidden');
+        document.getElementById('lobbyAvatarFallback').classList.add('hidden');
+      } catch (err) {
+        isCamOn = false;
+        updateLobbyMediaUI();
+      }
+    }
+
+    initMediaDevices();
+
+    function getInitials(name) {
+      const parts = name.trim().split(/\s+/);
+      if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
+    function updateLobbyNamePreview(val) {
+      const trimmed = val.trim();
+      const joinBtn = document.getElementById('joinRoomBtn');
+      const errorMsg = document.getElementById('nameErrorMsg');
+
+      if (trimmed.length >= 2) {
+        joinBtn.disabled = false;
+        errorMsg.classList.add('hidden');
+        document.getElementById('lobbyNamePreview').textContent = trimmed;
+        document.getElementById('lobbyInitials').textContent = getInitials(trimmed);
+      } else {
+        joinBtn.disabled = true;
+        if (trimmed.length > 0) errorMsg.classList.remove('hidden');
+        document.getElementById('lobbyNamePreview').textContent = 'Tamu';
+        document.getElementById('lobbyInitials').textContent = '?';
+      }
+    }
+
+    function toggleLobbyMic() {
+      isMicOn = !isMicOn;
+      if (localStream) {
+        localStream.getAudioTracks().forEach(t => t.enabled = isMicOn);
+      }
+      updateLobbyMediaUI();
+    }
+
+    function toggleLobbyCam() {
+      isCamOn = !isCamOn;
+      if (localStream) {
+        localStream.getVideoTracks().forEach(t => t.enabled = isCamOn);
+      }
+      updateLobbyMediaUI();
+    }
+
+    function updateLobbyMediaUI() {
+      document.getElementById('lobbyMicOnIcon').classList.toggle('hidden', !isMicOn);
+      document.getElementById('lobbyMicOffIcon').classList.toggle('hidden', isMicOn);
+      document.getElementById('lobbyMicBadge').className = `w-1.5 h-1.5 rounded-full ${isMicOn ? 'bg-emerald-400' : 'bg-rose-500'}`;
+
+      document.getElementById('lobbyCamOnIcon').classList.toggle('hidden', !isCamOn);
+      document.getElementById('lobbyCamOffIcon').classList.toggle('hidden', isCamOn);
+
+      const lobbyVideo = document.getElementById('lobbyVideo');
+      const fallback = document.getElementById('lobbyAvatarFallback');
+      if (isCamOn && localStream && localStream.getVideoTracks().length > 0) {
+        lobbyVideo.classList.remove('hidden');
+        fallback.classList.add('hidden');
+      } else {
+        lobbyVideo.classList.add('hidden');
+        fallback.classList.remove('hidden');
+      }
+    }
+
     // Masuk ke Ruang (sebagai Host atau sebagai Peserta)
     function handleJoinRoom(e) {
       e.preventDefault();
