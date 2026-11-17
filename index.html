@@ -55,6 +55,88 @@
     Notifikasi
   </div>
 
+  <!-- Modal Undang Peserta Minimalis -->
+  <div id="inviteModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="text-base font-semibold">Undang Peserta</h3>
+        <button onclick="closeInviteModal()" class="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 transition" title="Tutup">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-5">Bagikan kode atau tautan sesi privat ini kepada 1 lawan bicara.</p>
+
+      <!-- Kode Sesi & Salin Tautan -->
+      <div class="space-y-3 mb-5">
+        <div>
+          <label class="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Kode Sesi</label>
+          <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/70">
+            <span id="inviteSessionCode" class="font-mono text-sm font-semibold tracking-wider">TM2-0000</span>
+            <button type="button" onclick="copyInviteCode()" class="text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition">
+              Salin Kode
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Tautan Undangan</label>
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              id="inviteLinkInput"
+              readonly
+              class="flex-1 px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/70 text-xs font-mono text-zinc-600 dark:text-zinc-300 focus:outline-none"
+            />
+            <button
+              type="button"
+              onclick="copyInviteLink()"
+              class="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-medium shrink-0 transition"
+            >
+              Salin
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kirim Langsung Opsional (Email / WhatsApp) -->
+      <div class="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+        <label for="inviteContactInput" class="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">
+          Kirim Undangan Langsung <span class="text-zinc-400">(Opsional)</span>
+        </label>
+        <input
+          type="text"
+          id="inviteContactInput"
+          placeholder="Email atau No. WhatsApp (cth: 0812...)"
+          class="w-full px-3.5 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400 mb-2.5 transition"
+        />
+        <div class="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onclick="sendInviteVia('email')"
+            class="py-2 px-3 rounded-xl border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-medium flex items-center justify-center gap-1.5 transition"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span>Email</span>
+          </button>
+          <button
+            type="button"
+            onclick="sendInviteVia('whatsapp')"
+            class="py-2 px-3 rounded-xl border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-medium flex items-center justify-center gap-1.5 transition"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span>WhatsApp</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Konfirmasi Keluar (Pengganti confirm) -->
   <div id="leaveModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
     <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-xs w-full p-6 shadow-2xl text-center">
@@ -169,6 +251,19 @@
           >
             Gabung
           </button>
+
+          <div class="pt-1 flex justify-center">
+            <button
+              type="button"
+              onclick="openInviteModal()"
+              class="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              <span>Undang peserta</span>
+            </button>
+          </div>
         </form>
       </div>
     </main>
@@ -196,6 +291,14 @@
       </div>
 
       <div class="flex items-center gap-2">
+        <!-- Tombol Undang Peserta -->
+        <button onclick="openInviteModal()" class="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-700 dark:text-zinc-200 text-xs font-medium flex items-center gap-1.5 transition" title="Undang Peserta">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
+          <span>Undang</span>
+        </button>
+
         <!-- Ubah Tata Letak (Split / PiP) -->
         <button onclick="toggleVideoLayout()" class="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-400 transition" title="Ubah Tata Letak">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -483,6 +586,13 @@
     let isRecording = false;
     let mediaRecorder = null;
     let recordedChunks = [];
+
+    // Kode Sesi & Tautan Undangan
+    const sessionCode = 'TM2-' + Math.floor(1000 + Math.random() * 9000);
+    const baseUrl = window.location.href.split('?')[0];
+    const inviteUrl = `${baseUrl}?sesi=${sessionCode}`;
+    document.getElementById('inviteSessionCode').textContent = sessionCode;
+    document.getElementById('inviteLinkInput').value = inviteUrl;
 
     // Inisialisasi Kamera Lobi
     async function initMediaDevices() {
@@ -1017,6 +1127,57 @@
 
     function toggleTheme() {
       document.documentElement.classList.toggle('dark');
+    }
+
+    // Fasilitas Undang Peserta
+    function openInviteModal() {
+      const modal = document.getElementById('inviteModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeInviteModal() {
+      const modal = document.getElementById('inviteModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function copyTextFallback(text) {
+      const tempInput = document.createElement('input');
+      tempInput.value = text;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+    }
+
+    function copyInviteCode() {
+      copyTextFallback(sessionCode);
+      showToast(`Kode sesi ${sessionCode} disalin`);
+    }
+
+    function copyInviteLink() {
+      copyTextFallback(inviteUrl);
+      showToast('Tautan undangan disalin');
+    }
+
+    function sendInviteVia(platform) {
+      const contact = document.getElementById('inviteContactInput').value.trim();
+      const inviterName = userName || document.getElementById('userNameInput').value.trim() || 'Seseorang';
+      const message = `Halo! ${inviterName} mengundang Anda bergabung ke panggilan video 1-on-1 di TemuDua.\n\nKode Sesi: ${sessionCode}\nTautan: ${inviteUrl}`;
+
+      if (platform === 'email') {
+        const subject = encodeURIComponent(`Undangan Panggilan Video TemuDua (${sessionCode})`);
+        const body = encodeURIComponent(message);
+        const mailTarget = contact.includes('@') ? contact : '';
+        window.open(`mailto:${mailTarget}?subject=${subject}&body=${body}`, '_blank');
+      } else if (platform === 'whatsapp') {
+        const cleanPhone = contact.replace(/[^0-9]/g, '');
+        const waPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+        const encodedText = encodeURIComponent(message);
+        const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${encodedText}` : `https://wa.me/?text=${encodedText}`;
+        window.open(waUrl, '_blank');
+      }
     }
 
     function showToast(msg) {
